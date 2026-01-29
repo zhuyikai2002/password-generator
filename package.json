@@ -1,0 +1,24 @@
+{
+  "name": "password-generator",
+  "version": "2.0.0",
+  "description": "强密码生成器 - 支持可配置长度、强度评估、排除混淆字符",
+  "main": "generate-password.js",
+  "bin": {
+    "pwgen": "generate-password.js"
+  },
+  "scripts": {
+    "start": "node generate-password.js",
+    "build:mac": "pkg generate-password.js -t node18-macos-arm64 -o dist/pwgen-macos-arm64",
+    "build:mac-x64": "pkg generate-password.js -t node18-macos-x64 -o dist/pwgen-macos-x64",
+    "build:linux": "pkg generate-password.js -t node18-linux-x64 -o dist/pwgen-linux-x64",
+    "build:win": "pkg generate-password.js -t node18-win-x64 -o dist/pwgen-win-x64.exe",
+    "build:all": "npm run build:mac && npm run build:mac-x64 && npm run build:linux && npm run build:win"
+  },
+  "pkg": {
+    "targets": ["node18-macos-arm64", "node18-macos-x64", "node18-linux-x64", "node18-win-x64"],
+    "outputPath": "dist"
+  },
+  "keywords": ["password", "generator", "security", "cli"],
+  "author": "",
+  "license": "MIT"
+}

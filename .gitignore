@@ -1,0 +1,19 @@
+# 编译输出
+dist/
+*.exe
+
+# Node.js
+node_modules/
+package-lock.json
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.password_history.json
+
+# IDE
+.vscode/
+.idea/
