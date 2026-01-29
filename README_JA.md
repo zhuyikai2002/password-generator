@@ -16,7 +16,7 @@
 
 <p align="center">
   強力で安全なパスワード生成ツール<br>
-  Web、Windows、macOS、Linux に対応
+  Web、Windows、macOS、Linux対応、統一された美しいGUIインターフェース
 </p>
 
 ---
@@ -33,14 +33,15 @@
 
 | 機能 | 説明 |
 |------|------|
-| 🔢 **長さ設定** | 8〜128文字のパスワード長をサポート |
+| 🔢 **長さ設定** | **8〜128文字**のパスワード長をサポート |
 | 📊 **強度評価** | リアルタイムでエントロピー計算と解読時間を推定 |
 | 🎯 **文字タイプ** | 大文字、小文字、数字、特殊文字を選択可能 |
 | 🚫 **紛らわしい文字を除外** | 紛らわしい文字（0O1lI\|）を除外するオプション |
 | 📋 **ワンクリックコピー** | クリップボードに即座にコピー |
-| 📁 **複数の出力形式** | インタラクティブ、JSON、プレーンテキスト出力 |
+| 📜 **履歴** | 生成履歴をローカルに保存、個別削除可能 |
+| 📥 **エクスポート** | **TXT / JSON / CSV / Markdown** 形式でダウンロード |
+| 🎨 **統一GUI** | すべてのプラットフォームで美しいGUIインターフェース |
 | 🔒 **セキュアな乱数** | 暗号学的に安全な乱数生成 |
-| 📜 **履歴** | 生成履歴をローカルに保存（Web版） |
 
 ---
 
@@ -56,8 +57,9 @@ https://zhuyikai2002.github.io/password-generator/ にアクセス
 
 | ファイル | プラットフォーム | サイズ | 説明 |
 |----------|------------------|--------|------|
-| `pwgen-win.exe` | Windows | ~36MB | 🟢 インストール不要、ダブルクリックで実行 |
-| `PasswordGenerator-2.0.0-macOS.dmg` | macOS | ~334KB | アプリケーション（アイコン付き） |
+| `PasswordGenerator-2.0.0-Windows-GUI.zip` | Windows | ~10KB | 🟢 **GUIバージョン、ダブルクリックで実行** |
+| `PasswordGenerator-2.0.0-macOS.dmg` | macOS | ~340KB | 🍎 GUIアプリケーション（アイコン付き） |
+| `pwgen-win.exe` | Windows | ~36MB | コマンドラインバージョン |
 | `pwgen` | macOS | ~103KB | CLIツール（Swift） |
 | `pwgen-linux` | Linux | ~44MB | CLIツール |
 
@@ -65,40 +67,53 @@ https://zhuyikai2002.github.io/password-generator/ にアクセス
 
 ## 🚀 クイックスタート
 
-### Windows ユーザー
+### Windows ユーザー（GUI推奨）
 
-1. `pwgen-win.exe` をダウンロード
-2. ダブルクリックで実行、インストール不要
-3. セキュリティソフトにブロックされた場合は「詳細情報」→「実行」をクリック
+1. `PasswordGenerator-2.0.0-Windows-GUI.zip` をダウンロード
+2. 解凍して `PasswordGenerator.hta` をダブルクリック
+3. 美しいグラフィカルインターフェースをお楽しみください！
+
+> 💡 `启动密码生成器.bat` をダブルクリックしても実行できます
 
 ### macOS ユーザー
 
 **GUIアプリケーション：**
 1. `PasswordGenerator-2.0.0-macOS.dmg` をダウンロード
 2. DMGを開き、アプリをApplicationsにドラッグ
-3. ダブルクリックで実行
+3. ダブルクリックで実行、ブラウザで美しいインターフェースが開きます
 
 **コマンドライン：**
 ```bash
-# ダウンロードして実行権限を付与
 chmod +x pwgen
-
-# 実行
 ./pwgen
-
-# グローバルインストール（オプション）
-sudo cp pwgen /usr/local/bin/
 ```
 
 ### Linux ユーザー
 
 ```bash
-# ダウンロードして実行権限を付与
 chmod +x pwgen-linux
-
-# 実行
 ./pwgen-linux
 ```
+
+またはオンラインバージョンを直接使用！
+
+---
+
+## 📥 履歴エクスポート機能
+
+生成されたパスワードは自動的にローカル履歴に保存されます。複数の形式でエクスポート可能：
+
+| 形式 | 説明 |
+|------|------|
+| 📄 **TXT** | プレーンテキスト、1行に1パスワード |
+| 📋 **JSON** | パスワード、長さ、エントロピーを含む構造化データ |
+| 📊 **CSV** | テーブル形式、Excelで開ける |
+| 📝 **Markdown** | フォーマットされたテーブル、ドキュメント向け |
+
+**使い方：**
+1. 履歴セクションの「⬇️ ダウンロード」ボタンをクリック
+2. 希望の形式を選択
+3. 確認してダウンロード
 
 ---
 
@@ -110,8 +125,9 @@ chmod +x pwgen-linux
 # インタラクティブモード（初心者向け）
 pwgen
 
-# 指定した長さのパスワードを生成
+# 指定した長さのパスワードを生成（8-128）
 pwgen -l 16
+pwgen -l 128    # 最大128文字
 
 # 複数のパスワードを一括生成
 pwgen -l 20 -c 5 -b
@@ -124,7 +140,7 @@ pwgen -l 16 -e
 
 | パラメータ | 完全形式 | 説明 | デフォルト |
 |------------|----------|------|------------|
-| `-l` | `--length` | パスワードの長さ | 12 |
+| `-l` | `--length` | パスワードの長さ (8-128) | 12 |
 | `-c` | `--count` | 生成数 | 3 |
 | `-e` | `--exclude` | 紛らわしい文字を除外 | いいえ |
 | `-b` | `--batch` | バッチモード | いいえ |
@@ -159,16 +175,16 @@ pwgen -l 16 -e
 
 ```
 password-generator/
-├── docs/                    # Web版（HTML/CSS/JS）
+├── docs/                    # Web版（GitHub Pages）
 │   └── index.html
-├── generate-password.py     # Python版（最も多機能）
-├── generate-password.js     # Node.js版（クロスプラットフォーム）
-├── generate-password.swift  # Swift版（macOSネイティブ）
-├── pwgen                    # Swiftコンパイル済みバイナリ
+├── app/                     # デスクトップアプリケーション
+│   ├── PasswordGenerator.hta    # Windows GUI (HTA)
+│   ├── pwgen.html              # 共通HTMLインターフェース
+│   └── 启动密码生成器.bat
+├── generate-password.py     # Python版
+├── generate-password.js     # Node.js版
+├── generate-password.swift  # Swift版
 └── dist/                    # ビルド出力
-    ├── pwgen-win.exe        # Windows実行ファイル
-    ├── pwgen-linux          # Linux実行ファイル
-    └── pwgen-node           # Node.jsパッケージ版
 ```
 
 ### セキュリティについて

@@ -16,7 +16,7 @@
 
 <p align="center">
   A powerful and secure password generation tool<br>
-  Supporting Web, Windows, macOS, and Linux
+  Supporting Web, Windows, macOS, and Linux with unified beautiful GUI
 </p>
 
 ---
@@ -33,14 +33,15 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🔢 **Configurable Length** | Support 8-128 character password length |
+| 🔢 **Configurable Length** | Support **8-128** character password length |
 | 📊 **Strength Assessment** | Real-time entropy calculation and crack time estimation |
 | 🎯 **Character Types** | Choose from uppercase, lowercase, numbers, symbols |
 | 🚫 **Exclude Ambiguous** | Option to exclude confusing characters (0O1lI\|) |
 | 📋 **One-Click Copy** | Copy to clipboard instantly |
-| 📁 **Multiple Formats** | Interactive, JSON, and plain text output |
+| 📜 **History** | Local storage for generated passwords with delete option |
+| 📥 **Export Download** | Export as **TXT / JSON / CSV / Markdown** formats |
+| 🎨 **Unified GUI** | Beautiful GUI interface across all platforms |
 | 🔒 **Secure Random** | Cryptographically secure random number generation |
-| 📜 **History** | Local storage for generated passwords (Web version) |
 
 ---
 
@@ -56,8 +57,9 @@ Go to [Releases Page](https://github.com/zhuyikai2002/password-generator/release
 
 | File | Platform | Size | Description |
 |------|----------|------|-------------|
-| `pwgen-win.exe` | Windows | ~36MB | 🟢 Portable, double-click to run |
-| `PasswordGenerator-2.0.0-macOS.dmg` | macOS | ~334KB | Application (with icon) |
+| `PasswordGenerator-2.0.0-Windows-GUI.zip` | Windows | ~10KB | 🟢 **GUI version, double-click to run** |
+| `PasswordGenerator-2.0.0-macOS.dmg` | macOS | ~340KB | 🍎 GUI application (with icon) |
+| `pwgen-win.exe` | Windows | ~36MB | Command line version |
 | `pwgen` | macOS | ~103KB | CLI tool (Swift) |
 | `pwgen-linux` | Linux | ~44MB | CLI tool |
 
@@ -65,40 +67,53 @@ Go to [Releases Page](https://github.com/zhuyikai2002/password-generator/release
 
 ## 🚀 Quick Start
 
-### Windows Users
+### Windows Users (GUI Recommended)
 
-1. Download `pwgen-win.exe`
-2. Double-click to run, no installation required
-3. If blocked by security software, click "More info" → "Run anyway"
+1. Download `PasswordGenerator-2.0.0-Windows-GUI.zip`
+2. Extract and double-click `PasswordGenerator.hta`
+3. Enjoy the beautiful graphical interface!
+
+> 💡 You can also double-click `启动密码生成器.bat` to run
 
 ### macOS Users
 
 **GUI Application:**
 1. Download `PasswordGenerator-2.0.0-macOS.dmg`
 2. Open DMG, drag the app to Applications
-3. Double-click to run
+3. Double-click to run, opens in browser with beautiful interface
 
 **Command Line:**
 ```bash
-# Download and add execute permission
 chmod +x pwgen
-
-# Run
 ./pwgen
-
-# Global install (optional)
-sudo cp pwgen /usr/local/bin/
 ```
 
 ### Linux Users
 
 ```bash
-# Download and add execute permission
 chmod +x pwgen-linux
-
-# Run
 ./pwgen-linux
 ```
+
+Or use the online version directly!
+
+---
+
+## 📥 History Export Feature
+
+Generated passwords are automatically saved to local history. Export in multiple formats:
+
+| Format | Description |
+|--------|-------------|
+| 📄 **TXT** | Plain text, one password per line |
+| 📋 **JSON** | Structured data with password, length, entropy |
+| 📊 **CSV** | Table format, compatible with Excel |
+| 📝 **Markdown** | Formatted table for documentation |
+
+**How to use:**
+1. Click the "⬇️ Download" button in the history section
+2. Select desired format
+3. Confirm to download
 
 ---
 
@@ -110,8 +125,9 @@ chmod +x pwgen-linux
 # Interactive mode (recommended for beginners)
 pwgen
 
-# Generate password with specific length
+# Generate password with specific length (8-128)
 pwgen -l 16
+pwgen -l 128    # Maximum 128 characters
 
 # Batch generate multiple passwords
 pwgen -l 20 -c 5 -b
@@ -124,7 +140,7 @@ pwgen -l 16 -e
 
 | Param | Full Form | Description | Default |
 |-------|-----------|-------------|---------|
-| `-l` | `--length` | Password length | 12 |
+| `-l` | `--length` | Password length (8-128) | 12 |
 | `-c` | `--count` | Number to generate | 3 |
 | `-e` | `--exclude` | Exclude ambiguous chars | No |
 | `-b` | `--batch` | Batch mode | No |
@@ -135,36 +151,6 @@ pwgen -l 16 -e
 | | `--json` | JSON output format | No |
 | | `--plain` | Plain text output | No |
 | `-h` | `--help` | Show help | - |
-
-### Output Format Examples
-
-**Interactive Mode:**
-```
-╔══════════════════════════════════════════════════════════╗
-║                 Password Generator v2.0                   ║
-╚══════════════════════════════════════════════════════════╝
-
-Generated passwords:
-
-  [1] Kx9#mPq$Lw2@
-      🟣 Strength: Very Strong | Entropy: 78.66 bits | Crack time: Millions of years
-
-Commands: [1-3] Select | [r] Regenerate | [l] Change length | [q] Quit
-```
-
-**JSON Format:**
-```json
-{
-  "generated_at": "2024-01-29T12:00:00Z",
-  "passwords": [
-    {
-      "password": "Kx9#mPq$Lw2@",
-      "entropy": 78.66,
-      "strength": "Very Strong"
-    }
-  ]
-}
-```
 
 ---
 
@@ -189,16 +175,16 @@ This project is implemented in multiple languages for different platforms:
 
 ```
 password-generator/
-├── docs/                    # Web version (HTML/CSS/JS)
+├── docs/                    # Web version (GitHub Pages)
 │   └── index.html
-├── generate-password.py     # Python version (most features)
-├── generate-password.js     # Node.js version (cross-platform)
-├── generate-password.swift  # Swift version (macOS native)
-├── pwgen                    # Swift compiled binary
+├── app/                     # Desktop applications
+│   ├── PasswordGenerator.hta    # Windows GUI (HTA)
+│   ├── pwgen.html              # Universal HTML interface
+│   └── 启动密码生成器.bat
+├── generate-password.py     # Python version
+├── generate-password.js     # Node.js version
+├── generate-password.swift  # Swift version
 └── dist/                    # Build output
-    ├── pwgen-win.exe        # Windows executable
-    ├── pwgen-linux          # Linux executable
-    └── pwgen-node           # Node.js packaged version
 ```
 
 ### Security Notes
@@ -209,49 +195,6 @@ password-generator/
 - **Node.js version**: Uses `crypto.randomInt()`
 
 All versions use cryptographically secure random number generators to ensure sufficient randomness.
-
----
-
-## 🛠️ Local Development
-
-### Clone Repository
-
-```bash
-git clone https://github.com/zhuyikai2002/password-generator.git
-cd password-generator
-```
-
-### Run Different Versions
-
-```bash
-# Python version
-python3 generate-password.py
-
-# Node.js version
-node generate-password.js
-
-# Swift version (requires macOS)
-swift generate-password.swift
-# Or compile and run
-swiftc -O -o pwgen generate-password.swift
-./pwgen
-```
-
-### Build & Package
-
-```bash
-# Package for Windows
-npx pkg generate-password.js -t node18-win-x64 -o dist/pwgen-win.exe
-
-# Package for Linux
-npx pkg generate-password.js -t node18-linux-x64 -o dist/pwgen-linux
-
-# Package for macOS (Node.js)
-npx pkg generate-password.js -t node18-macos-arm64 -o dist/pwgen-node
-
-# Compile Swift (macOS)
-swiftc -O -o pwgen generate-password.swift
-```
 
 ---
 
