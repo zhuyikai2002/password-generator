@@ -57,8 +57,9 @@
 
 | 文件 | 平台 | 大小 | 说明 |
 |------|------|------|------|
-| `PasswordGenerator-2.0.0-Windows-GUI.zip` | Windows | ~10KB | 🟢 **GUI 版本，双击运行，美观界面** |
-| `PasswordGenerator-2.0.0-macOS.dmg` | macOS | ~340KB | 🍎 GUI 应用（带图标） |
+| `PasswordGenerator-2.0.0-Setup.exe` | Windows | ~1.9MB | 🟢 **安装程序（推荐）支持桌面快捷方式** |
+| `PasswordGenerator-2.0.0-macOS.dmg` | macOS | ~321KB | 🍎 **原生窗口应用，双击直接打开** |
+| `PasswordGenerator-2.0.0-Windows-GUI.zip` | Windows | ~10KB | 免安装版 (ZIP) |
 | `pwgen-win.exe` | Windows | ~36MB | 命令行版本 |
 | `pwgen` | macOS | ~103KB | 命令行工具 (Swift) |
 | `pwgen-linux` | Linux | ~44MB | 命令行工具 |
@@ -67,20 +68,21 @@
 
 ## 🚀 快速开始
 
-### Windows 用户（推荐 GUI 版）
+### Windows 用户（推荐安装程序）
 
-1. 下载 `PasswordGenerator-2.0.0-Windows-GUI.zip`
-2. 解压后双击 `PasswordGenerator.hta`
-3. 享受美观的图形界面！
+1. 下载 `PasswordGenerator-2.0.0-Setup.exe`
+2. 双击运行安装程序
+3. 选择安装目录，✅ 勾选「创建桌面快捷方式」
+4. 完成后在桌面双击图标即可运行！
 
-> 💡 也可以双击 `启动密码生成器.bat` 运行
+> 💡 也可以下载 ZIP 免安装版，解压后双击 `PasswordGenerator.hta` 运行
 
 ### macOS 用户
 
 **图形界面：**
 1. 下载 `PasswordGenerator-2.0.0-macOS.dmg`
 2. 打开 DMG，将应用拖拽到 Applications
-3. 双击运行，在浏览器中打开美观界面
+3. 双击运行，**直接打开独立窗口，无需浏览器！**
 
 **命令行：**
 ```bash
