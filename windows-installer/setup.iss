@@ -28,7 +28,7 @@ DisableProgramGroupPage=yes
 ; 输出设置
 OutputDir=output
 OutputBaseFilename=PasswordGenerator-{#MyAppVersion}-Setup
-SetupIconFile=icon.ico
+SetupIconFile=files\icon.ico
 Compression=lzma2
 SolidCompression=yes
 
