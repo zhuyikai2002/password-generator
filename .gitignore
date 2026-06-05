@@ -17,3 +17,9 @@ __pycache__/
 # IDE
 .vscode/
 .idea/
+pyrightconfig.json
+
+# 敏感文件
+.env
+*.enc
+*.salt

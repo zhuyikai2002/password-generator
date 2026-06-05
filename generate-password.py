@@ -12,6 +12,7 @@ import json
 import math
 import os
 import secrets
+import socket
 import string
 import subprocess
 import sys
@@ -21,6 +22,18 @@ from pathlib import Path
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+try:
+    import paramiko
+    HAS_PARAMIKO = True
+except ImportError:
+    HAS_PARAMIKO = False
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 
 # ==================== 配置 ====================
@@ -46,6 +59,14 @@ HISTORY_FILE = Path.home() / ".password_history.json"
 ENCRYPTED_FILE = Path.home() / ".passwords.enc"
 SALT_FILE = Path.home() / ".passwords.salt"
 
+# SFTP 云端同步配置（从环境变量或 .env 文件读取）
+SFTP_HOST = os.environ.get("SFTP_HOST", "")
+SFTP_PORT = int(os.environ.get("SFTP_PORT", "22"))
+SFTP_USER = os.environ.get("SFTP_USER", "")
+SFTP_PASSWORD = os.environ.get("SFTP_PASSWORD", "")
+SFTP_KEY_PATH = os.environ.get("SFTP_KEY_PATH", "")
+REMOTE_DIR = os.environ.get("SFTP_REMOTE_DIR", "/home/user/password-sync")
+
 
 # ==================== 密码生成 ====================
 
@@ -53,7 +74,7 @@ def get_charset(exclude_confusing: bool = False,
                 include_uppercase: bool = True,
                 include_lowercase: bool = True,
                 include_digits: bool = True,
-                include_special: bool = True) -> tuple:
+                include_special: bool = True) -> dict[str, str]:
     """获取字符集"""
     chars = {
         'uppercase': UPPERCASE if include_uppercase else '',
@@ -225,7 +246,7 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()[:16]
 
 
-def save_to_history(password: str, metadata: dict = None):
+def save_to_history(password: str, metadata: dict | None = None):
     """保存到历史记录（只存储哈希和元数据）"""
     history = load_history()
     
@@ -343,6 +364,9 @@ def encrypt_and_save(passwords_data: list, master_password: str):
     print(f"\n✓ 已加密保存 {len(passwords_data)} 条密码到: {ENCRYPTED_FILE}")
     print(f"  当前共存储 {len(existing_data)} 条密码记录")
 
+    # 触发云端同步（如已配置）
+    sync_after_save()
+
 
 def decrypt_and_load(master_password: str) -> list:
     """解密并加载密码数据"""
@@ -436,6 +460,221 @@ def read_passwords_encrypted():
     print("-" * 80)
     print(f"\n共 {len(data)} 条记录")
     print("⚠ 请注意：密码已在终端明文显示，阅读后请及时清屏。\n")
+
+
+# ==================== SFTP 云端同步 ====================
+
+def sftp_is_configured() -> bool:
+    """检查 SFTP 配置是否完整"""
+    if not HAS_PARAMIKO:
+        return False
+    return bool(SFTP_HOST and SFTP_USER)
+
+
+def create_sftp_client() -> tuple:
+    """建立 SSH 连接并返回 (ssh_client, sftp_client)"""
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    connect_kwargs = {
+        "hostname": SFTP_HOST,
+        "port": SFTP_PORT,
+        "username": SFTP_USER,
+        "timeout": 10,
+    }
+
+    # 密钥认证优先
+    if SFTP_KEY_PATH:
+        key_path = os.path.expanduser(SFTP_KEY_PATH)
+        if os.path.exists(key_path):
+            connect_kwargs["key_filename"] = key_path
+        elif SFTP_PASSWORD:
+            connect_kwargs["password"] = SFTP_PASSWORD
+    elif SFTP_PASSWORD:
+        connect_kwargs["password"] = SFTP_PASSWORD
+
+    ssh.connect(**connect_kwargs)
+    sftp = ssh.open_sftp()
+    return ssh, sftp
+
+
+def _ensure_remote_dir(sftp):
+    """确保远程目录存在"""
+    try:
+        sftp.stat(REMOTE_DIR)
+    except FileNotFoundError:
+        # 逐级创建目录
+        parts = REMOTE_DIR.replace("\\", "/").split("/")
+        current = ""
+        for part in parts:
+            if not part:
+                current = "/"
+                continue
+            current = current + part + "/" if current.endswith("/") else current + "/" + part
+            try:
+                sftp.stat(current)
+            except FileNotFoundError:
+                sftp.mkdir(current)
+
+
+def _get_remote_mtime(sftp, remote_path: str) -> float:
+    """获取远程文件的修改时间，文件不存在返回 0"""
+    try:
+        return float(sftp.stat(remote_path).st_mtime)
+    except FileNotFoundError:
+        return 0.0
+
+
+def _get_local_mtime(local_path) -> float:
+    """获取本地文件的修改时间，文件不存在返回 0"""
+    try:
+        return os.path.getmtime(local_path)
+    except (OSError, FileNotFoundError):
+        return 0.0
+
+
+def sftp_push(force: bool = False):
+    """上传 .enc + .salt 到远程服务器（含时间戳比对）"""
+    if not sftp_is_configured():
+        print("\n⚠ SFTP 未配置，跳过云端同步。请配置 .env 文件后重试。")
+        return
+
+    if not ENCRYPTED_FILE.exists():
+        print("\n⚠ 本地无加密文件，请先生成并保存密码。")
+        return
+
+    print("\n☁ 正在连接 SFTP 服务器...")
+
+    try:
+        ssh, sftp = create_sftp_client()
+    except paramiko.AuthenticationException:
+        print("✗ SFTP 认证失败，请检查用户名/密码/密钥配置。")
+        return
+    except (paramiko.SSHException, socket.timeout, OSError) as e:
+        print(f"✗ SFTP 连接失败: {e}")
+        return
+
+    try:
+        _ensure_remote_dir(sftp)
+
+        remote_enc = REMOTE_DIR.rstrip("/") + "/" + ENCRYPTED_FILE.name
+        remote_salt = REMOTE_DIR.rstrip("/") + "/" + SALT_FILE.name
+
+        # 时间戳比对
+        if not force:
+            local_mtime = _get_local_mtime(ENCRYPTED_FILE)
+            remote_mtime = _get_remote_mtime(sftp, remote_enc)
+
+            if remote_mtime > 0 and local_mtime < remote_mtime:
+                print("\n⚠️ 发现服务器端有更新的密码记录！强制上传将覆盖远端数据。")
+                try:
+                    confirm = input("是否继续？[y/N]: ").strip().lower()
+                except (EOFError, KeyboardInterrupt):
+                    confirm = "n"
+                if confirm != 'y':
+                    print("已取消上传。建议先执行 --sync-pull 拉取最新数据。")
+                    return
+
+        # 上传文件
+        sftp.put(str(ENCRYPTED_FILE), remote_enc)
+        if SALT_FILE.exists():
+            sftp.put(str(SALT_FILE), remote_salt)
+
+        print(f"✓ 已上传到 {SFTP_HOST}:{REMOTE_DIR}")
+
+    except Exception as e:
+        print(f"✗ 上传失败: {e}")
+    finally:
+        sftp.close()
+        ssh.close()
+
+
+def sftp_pull(force: bool = False):
+    """从远程服务器下载 .enc + .salt 到本地（含时间戳比对）"""
+    if not sftp_is_configured():
+        print("\n⚠ SFTP 未配置，请配置 .env 文件后重试。")
+        return
+
+    print("\n☁ 正在连接 SFTP 服务器...")
+
+    try:
+        ssh, sftp = create_sftp_client()
+    except paramiko.AuthenticationException:
+        print("✗ SFTP 认证失败，请检查用户名/密码/密钥配置。")
+        return
+    except (paramiko.SSHException, socket.timeout, OSError) as e:
+        print(f"✗ SFTP 连接失败: {e}")
+        return
+
+    try:
+        remote_enc = REMOTE_DIR.rstrip("/") + "/" + ENCRYPTED_FILE.name
+        remote_salt = REMOTE_DIR.rstrip("/") + "/" + SALT_FILE.name
+
+        # 检查远程文件是否存在
+        remote_mtime = _get_remote_mtime(sftp, remote_enc)
+        if remote_mtime == 0:
+            print("\n⚠ 服务器上暂无密码文件。")
+            return
+
+        # 时间戳比对
+        if not force:
+            local_mtime = _get_local_mtime(ENCRYPTED_FILE)
+
+            if local_mtime > 0 and remote_mtime < local_mtime:
+                print("\n⚠️ 本地密码记录比服务器端更新！强制拉取将丢失本地最新修改。")
+                try:
+                    confirm = input("是否继续？[y/N]: ").strip().lower()
+                except (EOFError, KeyboardInterrupt):
+                    confirm = "n"
+                if confirm != 'y':
+                    print("已取消拉取。建议先执行 --sync-push 上传本地数据。")
+                    return
+
+        # 下载文件
+        sftp.get(remote_enc, str(ENCRYPTED_FILE))
+        try:
+            sftp.get(remote_salt, str(SALT_FILE))
+        except FileNotFoundError:
+            print("  ⚠ 远程盐文件不存在，仅拉取了加密文件。")
+
+        print(f"✓ 已从 {SFTP_HOST}:{REMOTE_DIR} 拉取到本地")
+
+    except FileNotFoundError:
+        print("\n⚠ 服务器上未找到密码文件。")
+    except Exception as e:
+        print(f"✗ 拉取失败: {e}")
+    finally:
+        sftp.close()
+        ssh.close()
+
+
+def sync_after_save():
+    """保存后自动同步钩子（仅在 SFTP 已配置时触发，静默模式不询问）"""
+    if not sftp_is_configured():
+        return
+
+    try:
+        print("\n☁ 正在同步到云端...")
+        ssh, sftp = create_sftp_client()
+
+        try:
+            _ensure_remote_dir(sftp)
+
+            remote_enc = REMOTE_DIR.rstrip("/") + "/" + ENCRYPTED_FILE.name
+            remote_salt = REMOTE_DIR.rstrip("/") + "/" + SALT_FILE.name
+
+            # 自动同步时：本地刚保存，一定是最新的，直接上传
+            sftp.put(str(ENCRYPTED_FILE), remote_enc)
+            if SALT_FILE.exists():
+                sftp.put(str(SALT_FILE), remote_salt)
+
+            print(f"✓ 云端同步完成 ({SFTP_HOST})")
+        finally:
+            sftp.close()
+            ssh.close()
+
+    except Exception as e:
+        print(f"⚠ 云端同步失败，已保存至本地: {e}")
 
 
 # ==================== 输出格式 ====================
@@ -534,7 +773,8 @@ def interactive_mode(args):
     generate_passwords()
     
     while True:
-        print("\n命令: [1-{}] 选择密码 | [r] 重新生成 | [l] 修改长度 | [s] 加密保存 | [d] 解密查看 | [h] 历史记录 | [q] 退出".format(args.count))
+        sync_hint = " | [u] 上传同步 | [p] 拉取同步" if sftp_is_configured() else ""
+        print(f"\n命令: [1-{args.count}] 选择密码 | [r] 重新生成 | [l] 修改长度 | [s] 加密保存 | [d] 解密查看{sync_hint} | [h] 历史记录 | [q] 退出")
         
         try:
             choice = input("请输入: ").strip().lower()
@@ -593,6 +833,14 @@ def interactive_mode(args):
         # 解密查看
         elif choice == 'd':
             read_passwords_encrypted()
+        
+        # 上传同步
+        elif choice == 'u':
+            sftp_push()
+        
+        # 拉取同步
+        elif choice == 'p':
+            sftp_pull()
         
         # 历史记录
         elif choice == 'h':
@@ -717,6 +965,14 @@ def main():
     parser.add_argument('--read-encrypted', action='store_true',
                         help='解密读取已保存的密码')
     
+    # SFTP 云端同步
+    parser.add_argument('--sync-push', action='store_true',
+                        help='手动上传加密文件到 SFTP 服务器')
+    parser.add_argument('--sync-pull', action='store_true',
+                        help='从 SFTP 服务器拉取加密文件到本地')
+    parser.add_argument('--force', action='store_true',
+                        help='强制同步，跳过时间戳比对检查')
+    
     # 非交互模式
     parser.add_argument('-b', '--batch', action='store_true',
                         help='批量模式（非交互）')
@@ -740,6 +996,15 @@ def main():
     # 解密读取模式
     if args.read_encrypted:
         read_passwords_encrypted()
+        return
+    
+    # SFTP 同步模式
+    if args.sync_push:
+        sftp_push(force=args.force)
+        return
+    
+    if args.sync_pull:
+        sftp_pull(force=args.force)
         return
     
     # 批量模式或有输出选项时使用非交互模式
