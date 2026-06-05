@@ -5,6 +5,8 @@
 """
 
 import argparse
+import base64
+import getpass
 import hashlib
 import json
 import math
@@ -15,6 +17,10 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 # ==================== 配置 ====================
@@ -35,6 +41,10 @@ CONFUSING_CHARS = "0O1lI|"
 
 # 历史记录文件
 HISTORY_FILE = Path.home() / ".password_history.json"
+
+# 加密密码存储文件
+ENCRYPTED_FILE = Path.home() / ".passwords.enc"
+SALT_FILE = Path.home() / ".passwords.salt"
 
 
 # ==================== 密码生成 ====================
@@ -274,6 +284,160 @@ def show_history():
     print("注意：历史记录只保存哈希值，不保存明文密码\n")
 
 
+# ==================== 加密存储 ====================
+
+def derive_key(master_password: str, salt: bytes) -> bytes:
+    """使用 PBKDF2HMAC 从主密码派生 Fernet 密钥"""
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=480_000,
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(master_password.encode('utf-8')))
+    return key
+
+
+def get_or_create_salt() -> bytes:
+    """读取或创建盐文件"""
+    if SALT_FILE.exists():
+        with open(SALT_FILE, 'rb') as f:
+            return f.read()
+    else:
+        salt = os.urandom(16)
+        with open(SALT_FILE, 'wb') as f:
+            f.write(salt)
+        return salt
+
+
+def encrypt_and_save(passwords_data: list, master_password: str):
+    """加密密码数据并保存到文件"""
+    salt = get_or_create_salt()
+    key = derive_key(master_password, salt)
+    fernet = Fernet(key)
+
+    # 如果已有加密文件，先解密合并
+    existing_data = []
+    if ENCRYPTED_FILE.exists():
+        try:
+            with open(ENCRYPTED_FILE, 'rb') as f:
+                encrypted = f.read()
+            decrypted = fernet.decrypt(encrypted)
+            existing_data = json.loads(decrypted.decode('utf-8'))
+        except InvalidToken:
+            print("\n⚠ 警告: 主密码与之前保存时不一致，将覆盖旧数据。")
+            existing_data = []
+        except Exception:
+            existing_data = []
+
+    # 合并数据
+    existing_data.extend(passwords_data)
+
+    # 加密并保存
+    plaintext = json.dumps(existing_data, ensure_ascii=False, indent=2).encode('utf-8')
+    encrypted = fernet.encrypt(plaintext)
+
+    with open(ENCRYPTED_FILE, 'wb') as f:
+        f.write(encrypted)
+
+    print(f"\n✓ 已加密保存 {len(passwords_data)} 条密码到: {ENCRYPTED_FILE}")
+    print(f"  当前共存储 {len(existing_data)} 条密码记录")
+
+
+def decrypt_and_load(master_password: str) -> list:
+    """解密并加载密码数据"""
+    if not ENCRYPTED_FILE.exists():
+        print("\n⚠ 暂无加密密码文件，请先生成并保存密码。")
+        return []
+
+    salt = get_or_create_salt()
+    key = derive_key(master_password, salt)
+    fernet = Fernet(key)
+
+    with open(ENCRYPTED_FILE, 'rb') as f:
+        encrypted = f.read()
+
+    decrypted = fernet.decrypt(encrypted)
+    return json.loads(decrypted.decode('utf-8'))
+
+
+def save_passwords_encrypted(passwords: list, analyses: list):
+    """交互式加密保存入口"""
+    print("\n" + "=" * 58)
+    print("            加密保存密码到本地")
+    print("=" * 58)
+    print("\n密码将使用主密码加密后保存，请牢记您的主密码！")
+    print("如果忘记主密码，已保存的密码将无法恢复。\n")
+
+    master_pwd = getpass.getpass("请输入主密码 (Master Password): ")
+    if not master_pwd:
+        print("\n✗ 主密码不能为空")
+        return
+
+    confirm_pwd = getpass.getpass("请再次确认主密码: ")
+    if master_pwd != confirm_pwd:
+        print("\n✗ 两次输入的主密码不一致")
+        return
+
+    # 构建保存数据
+    passwords_data = []
+    for pwd, analysis in zip(passwords, analyses):
+        passwords_data.append({
+            "password": pwd,
+            "length": analysis['length'],
+            "entropy": analysis['entropy'],
+            "strength": analysis['strength'],
+            "created_at": datetime.now().isoformat(),
+        })
+
+    try:
+        encrypt_and_save(passwords_data, master_pwd)
+    except Exception as e:
+        print(f"\n✗ 加密保存失败: {e}")
+
+
+def read_passwords_encrypted():
+    """交互式解密读取入口"""
+    print("\n" + "=" * 58)
+    print("            解密读取已保存的密码")
+    print("=" * 58)
+
+    if not ENCRYPTED_FILE.exists():
+        print("\n⚠ 暂无加密密码文件，请先生成并保存密码。")
+        return
+
+    master_pwd = getpass.getpass("\n请输入主密码 (Master Password): ")
+
+    try:
+        data = decrypt_and_load(master_pwd)
+    except InvalidToken:
+        print("\n✗ 主密码错误！无法解密。请确认您输入的主密码是否正确。")
+        return
+    except Exception as e:
+        print(f"\n✗ 解密失败: {e}")
+        return
+
+    if not data:
+        print("\n暂无已保存的密码记录。")
+        return
+
+    print(f"\n✓ 解密成功！共找到 {len(data)} 条密码记录：\n")
+    print(f"{'序号':<6}{'密码':<30}{'长度':<6}{'强度':<8}{'熵值':<10}{'保存时间'}")
+    print("-" * 80)
+
+    for i, record in enumerate(data, 1):
+        pwd = record.get('password', '???')
+        length = record.get('length', '-')
+        strength = record.get('strength', '-')
+        entropy = record.get('entropy', '-')
+        created = record.get('created_at', '')[:19].replace('T', ' ')
+        print(f"{i:<6}{pwd:<30}{length:<6}{strength:<8}{entropy:<10}{created}")
+
+    print("-" * 80)
+    print(f"\n共 {len(data)} 条记录")
+    print("⚠ 请注意：密码已在终端明文显示，阅读后请及时清屏。\n")
+
+
 # ==================== 输出格式 ====================
 
 def output_json(passwords: list, analyses: list) -> str:
@@ -370,7 +534,7 @@ def interactive_mode(args):
     generate_passwords()
     
     while True:
-        print("\n命令: [1-{}] 选择密码 | [r] 重新生成 | [l] 修改长度 | [h] 历史记录 | [q] 退出".format(args.count))
+        print("\n命令: [1-{}] 选择密码 | [r] 重新生成 | [l] 修改长度 | [s] 加密保存 | [d] 解密查看 | [h] 历史记录 | [q] 退出".format(args.count))
         
         try:
             choice = input("请输入: ").strip().lower()
@@ -421,6 +585,14 @@ def interactive_mode(args):
                     print(f"长度必须在 {MIN_LENGTH}-{MAX_LENGTH} 之间")
             except ValueError:
                 print("请输入有效的数字")
+        
+        # 加密保存
+        elif choice == 's':
+            save_passwords_encrypted(passwords, analyses)
+        
+        # 解密查看
+        elif choice == 'd':
+            read_passwords_encrypted()
         
         # 历史记录
         elif choice == 'h':
@@ -480,7 +652,9 @@ def batch_mode(args):
     
     print("-" * 58)
     
-    if args.output:
+    if args.save_encrypted:
+        save_passwords_encrypted(passwords, analyses)
+    elif args.output:
         content = '\n'.join(passwords)
         save_to_file(content, args.output, "text")
 
@@ -537,6 +711,12 @@ def main():
     parser.add_argument('--no-history', action='store_true',
                         help='不保存到历史记录')
     
+    # 加密存储
+    parser.add_argument('--save-encrypted', action='store_true',
+                        help='将生成的密码加密保存到本地')
+    parser.add_argument('--read-encrypted', action='store_true',
+                        help='解密读取已保存的密码')
+    
     # 非交互模式
     parser.add_argument('-b', '--batch', action='store_true',
                         help='批量模式（非交互）')
@@ -555,6 +735,11 @@ def main():
     # 显示历史记录
     if args.history:
         show_history()
+        return
+    
+    # 解密读取模式
+    if args.read_encrypted:
+        read_passwords_encrypted()
         return
     
     # 批量模式或有输出选项时使用非交互模式
