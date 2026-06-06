@@ -1,6 +1,9 @@
 # 编译输出
 dist/
+build/
+bin/
 *.exe
+*.spec
 
 # Node.js
 node_modules/
