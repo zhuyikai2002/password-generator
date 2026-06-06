@@ -3,297 +3,1254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>强密码生成器 v2.0</title>
+    <title>强密码生成器 v3.0</title>
+    <meta name="description" content="安全、离线的强密码生成与加密存储工具">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* ==================== 主题变量 ==================== */
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-card-hover: rgba(31, 41, 55, 0.8);
+            --bg-input: rgba(31, 41, 55, 0.6);
+            --border: rgba(75, 85, 99, 0.4);
+            --border-focus: #6366f1;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-dim: #6b7280;
+            --accent-blue: #6366f1;
+            --accent-purple: #a855f7;
+            --accent-cyan: #22d3ee;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --gradient-main: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+            --gradient-card: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(168,85,247,0.05) 100%);
+            --glass-bg: rgba(17, 24, 39, 0.6);
+            --glass-border: rgba(99, 102, 241, 0.2);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --radius-xs: 6px;
+            --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ==================== 基础重置 ==================== */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: 16px; scroll-behavior: smooth; }
         body {
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 16px;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(168,85,247,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(236,72,153,0.04) 0%, transparent 50%);
+        }
+
+        /* ==================== 容器 ==================== */
+        .app {
+            max-width: 580px;
+            width: 100%;
+        }
+
+        /* ==================== Banner ==================== */
+        .banner {
+            text-align: center;
+            margin-bottom: 28px;
+            animation: fadeInDown 0.6s ease;
+        }
+        .banner-icon {
+            width: 64px; height: 64px;
+            background: var(--gradient-main);
+            border-radius: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 14px;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+        .banner h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+        .banner-sub {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        .banner-tags {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .banner-tag {
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            background: var(--glass-bg);
+        }
+
+        /* ==================== Tab 导航 ==================== */
+        .tabs {
+            display: flex;
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            background: none;
+            position: relative;
+        }
+        .tab:hover { color: var(--text-secondary); background: rgba(99,102,241,0.05); }
+        .tab.active {
+            color: var(--accent-blue);
+            background: rgba(99,102,241,0.1);
+        }
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 20%; right: 20%;
+            height: 2px;
+            background: var(--gradient-main);
+            border-radius: 2px;
+        }
+
+        /* ==================== 卡片 ==================== */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: var(--glass-shadow);
+            transition: var(--transition);
+        }
+        .card:hover { border-color: rgba(99,102,241,0.35); }
+        .card-title {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        /* ==================== 面板切换 ==================== */
+        .panel { display: none; animation: fadeIn 0.3s ease; }
+        .panel.active { display: block; }
+
+        /* ==================== 密码配置 ==================== */
+        .config-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .config-label { font-size: 0.9rem; color: var(--text-secondary); }
+        .config-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            background: rgba(34, 211, 238, 0.1);
+            padding: 2px 12px;
+            border-radius: 20px;
+            min-width: 42px;
+            text-align: center;
+        }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--bg-input);
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            background: var(--gradient-main);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.5);
+            transition: transform 0.2s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+        input[type="number"] {
+            width: 60px;
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            text-align: center;
+            outline: none;
+        }
+        input[type="number"]:focus { border-color: var(--accent-blue); }
+        .charset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .charset-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: var(--radius-xs);
+            background: var(--bg-input);
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px solid transparent;
+        }
+        .charset-item:hover { border-color: var(--glass-border); }
+        .charset-item input[type="checkbox"] {
+            width: 16px; height: 16px;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+        .charset-item label {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* ==================== 密码展示 ==================== */
+        .password-display {
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 16px;
+            transition: var(--transition);
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .password-display:hover { border-color: var(--accent-blue); }
+        .password-text {
+            font-family: var(--font-mono);
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-all;
+            line-height: 1.6;
+            letter-spacing: 0.5px;
+            transition: var(--transition);
+        }
+        .password-text.generating {
+            animation: textGlitch 0.1s infinite;
+        }
+
+        /* ==================== 强度条 ==================== */
+        .strength-bar {
+            margin-top: 16px;
+            width: 100%;
+        }
+        .strength-track {
+            height: 4px;
+            background: rgba(75, 85, 99, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        .strength-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease, background 0.5s ease;
+            width: 0;
+        }
+        .strength-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+        }
+        .strength-level { font-weight: 600; }
+        .strength-detail { color: var(--text-dim); }
+
+        /* ==================== 按钮 ==================== */
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .btn-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .btn {
+            padding: 12px 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary {
+            background: var(--gradient-main);
+            color: white;
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+        }
+        .btn-primary:hover { box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5); }
+        .btn-secondary {
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+        .btn-success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .btn-success:hover { background: rgba(16, 185, 129, 0.25); }
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.2); }
+        .btn-full { grid-column: 1 / -1; }
+        .btn.copied { background: var(--accent-green); color: white; }
+
+        /* ==================== 密码库 ==================== */
+        .vault-lock {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .vault-lock-icon { font-size: 48px; margin-bottom: 16px; }
+        .vault-lock p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            max-width: 360px;
+            margin: 0 auto;
+        }
+        .input-group input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .input-group input:focus { border-color: var(--accent-blue); }
+        .input-group input::placeholder { color: var(--text-dim); }
+
+        .vault-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        .vault-table th {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }
+        .vault-table td {
+            padding: 12px 8px;
+            font-size: 0.82rem;
+            border-bottom: 1px solid rgba(75, 85, 99, 0.2);
+            color: var(--text-secondary);
+            vertical-align: middle;
+        }
+        .vault-table tr:nth-child(even) td { background: rgba(99, 102, 241, 0.03); }
+        .vault-table tr:hover td { background: rgba(99, 102, 241, 0.08); }
+        .vault-pwd {
+            font-family: var(--font-mono);
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+        .vault-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .vault-btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .vault-btn-copy { background: rgba(99,102,241,0.15); color: var(--accent-blue); }
+        .vault-btn-copy:hover { background: rgba(99,102,241,0.3); }
+        .vault-btn-del { background: rgba(239,68,68,0.1); color: var(--accent-red); }
+        .vault-btn-del:hover { background: rgba(239,68,68,0.2); }
+        .vault-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+        .vault-warning {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: var(--radius-xs);
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            color: var(--accent-yellow);
+            font-size: 0.78rem;
+            margin-top: 12px;
+        }
+
+        /* ==================== 历史记录 ==================== */
+        .history-section { margin-top: 8px; }
+        .history-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            cursor: pointer;
+            color: var(--text-dim);
+            font-size: 0.82rem;
+            border: none;
+            background: none;
+            width: 100%;
+        }
+        .history-toggle:hover { color: var(--text-secondary); }
+        .history-list {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+        .history-list.open { max-height: 500px; overflow-y: auto; }
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border-radius: var(--radius-xs);
+            margin-bottom: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+        .history-item:hover { background: var(--bg-card-hover); }
+        .history-pwd {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+
+        /* ==================== 模态框 ==================== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
             align-items: center;
             justify-content: center;
             padding: 20px;
         }
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 40px;
-            max-width: 520px;
-            width: 100%;
-        }
-        .header { text-align: center; margin-bottom: 30px; }
-        .logo {
-            width: 80px; height: 80px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20px;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 15px;
-            font-size: 28px; font-weight: bold; color: white;
-        }
-        h1 { color: #333; font-size: 24px; margin-bottom: 5px; }
-        .subtitle { color: #666; font-size: 14px; }
-        .version { color: #999; font-size: 12px; margin-top: 5px; }
-        .settings { margin-bottom: 25px; }
-        .setting-group { margin-bottom: 20px; }
-        .setting-label {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 8px; color: #333; font-weight: 500;
-        }
-        .setting-value {
-            background: #667eea; color: white;
-            padding: 2px 10px; border-radius: 12px; font-size: 14px;
-            min-width: 45px; text-align: center;
-        }
-        .slider-container { display: flex; align-items: center; gap: 10px; }
-        .slider-container input[type="number"] {
-            width: 70px; padding: 6px 10px;
-            border: 2px solid #e0e0e0; border-radius: 8px;
-            font-size: 14px; text-align: center;
-        }
-        .slider-container input[type="number"]:focus { outline: none; border-color: #667eea; }
-        input[type="range"] {
-            flex: 1; height: 8px; border-radius: 4px;
-            background: #e0e0e0; outline: none; -webkit-appearance: none;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 22px; height: 22px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-        }
-        .checkboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .checkbox-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-        .checkbox-item input { width: 18px; height: 18px; accent-color: #667eea; }
-        .checkbox-item span { font-size: 14px; color: #555; }
-        .password-display {
-            background: #f8f9fa; border: 2px solid #e0e0e0;
-            border-radius: 12px; padding: 20px; margin-bottom: 15px;
-            text-align: center; transition: border-color 0.3s;
-        }
-        .password-display:hover { border-color: #667eea; }
-        .password-text {
-            font-family: 'Consolas', 'SF Mono', Monaco, monospace;
-            font-size: 18px; font-weight: 600; color: #333;
-            word-break: break-all; line-height: 1.4; min-height: 28px;
-        }
-        .strength-bar { margin-top: 15px; }
-        .strength-meter {
-            height: 6px; background: #e0e0e0;
-            border-radius: 3px; overflow: hidden; margin-bottom: 8px;
-        }
-        .strength-fill { height: 100%; border-radius: 3px; transition: width 0.3s, background 0.3s; }
-        .strength-info { display: flex; justify-content: space-between; font-size: 12px; color: #666; }
-        .strength-level { font-weight: 600; }
-        .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        button {
-            padding: 14px 20px; border: none; border-radius: 10px;
-            font-size: 15px; font-weight: 600; cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        button:active { transform: scale(0.98); }
-        .btn-generate {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        }
-        .btn-generate:hover { box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5); }
-        .btn-copy { background: #f0f0f0; color: #333; }
-        .btn-copy:hover { background: #e5e5e5; }
-        .btn-copy.copied { background: #4CAF50; color: white; }
-        .history { margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; }
-        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .history-title { font-size: 14px; color: #666; font-weight: 500; }
-        .history-actions { display: flex; gap: 12px; }
-        .history-action {
-            font-size: 12px; color: #667eea; cursor: pointer;
-            text-decoration: none; display: flex; align-items: center; gap: 4px;
-        }
-        .history-action:hover { text-decoration: underline; }
-        .history-list { max-height: 180px; overflow-y: auto; }
-        .history-item {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 12px; background: #f8f9fa; border-radius: 8px;
-            margin-bottom: 6px; font-family: 'Consolas', monospace; font-size: 12px;
-        }
-        .history-item:hover { background: #f0f0f0; }
-        .history-password { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 10px; }
-        .history-item-actions { display: flex; gap: 8px; }
-        .history-copy, .history-delete {
-            background: none; border: none; cursor: pointer;
-            padding: 4px 8px; font-size: 11px; border-radius: 4px;
-        }
-        .history-copy { color: #667eea; background: rgba(102, 126, 234, 0.1); }
-        .history-delete { color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
-        .dropdown { position: relative; display: inline-block; }
-        .dropdown-content {
-            display: none; position: absolute; right: 0; bottom: 100%;
-            background: white; min-width: 160px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            border-radius: 10px; z-index: 100; margin-bottom: 8px; overflow: hidden;
-        }
-        .dropdown-content.show { display: block; }
-        .dropdown-item {
-            padding: 12px 16px; cursor: pointer;
-            display: flex; align-items: center; gap: 10px;
-            font-size: 13px; color: #333; transition: background 0.2s;
-        }
-        .dropdown-item:hover { background: #f5f5f5; }
-        .dropdown-item .icon { font-size: 16px; }
-        .footer { text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #eee; }
-        .footer a { color: #667eea; text-decoration: none; font-size: 13px; }
-        .footer span { color: #999; font-size: 12px; display: block; margin-top: 5px; }
+        .modal-overlay.show { display: flex; }
         .modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;
+            background: var(--bg-secondary);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            padding: 28px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: fadeIn 0.2s ease;
         }
-        .modal.show { display: flex; }
-        .modal-content {
-            background: white; border-radius: 16px; padding: 30px;
-            max-width: 400px; width: 90%; text-align: center;
+        .modal-icon { font-size: 40px; margin-bottom: 12px; }
+        .modal h3 { font-size: 1.1rem; margin-bottom: 8px; }
+        .modal p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px; }
+        .modal .btn-row { justify-content: center; }
+
+        /* ==================== Toast ==================== */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            font-weight: 500;
+            z-index: 2000;
+            transition: transform 0.3s ease;
+            pointer-events: none;
         }
-        .modal-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: #333; }
-        .modal-desc { font-size: 14px; color: #666; margin-bottom: 20px; }
-        .modal-buttons { display: flex; gap: 12px; justify-content: center; }
-        .modal-btn { padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; }
-        .modal-btn-cancel { background: #f0f0f0; color: #333; }
-        .modal-btn-confirm { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast-success { background: var(--accent-green); color: white; }
+        .toast-error { background: var(--accent-red); color: white; }
+        .toast-warning { background: var(--accent-yellow); color: #1a1a2e; }
+
+        /* ==================== Footer ==================== */
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            padding: 16px 0;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        .footer a { color: var(--accent-blue); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+
+        /* ==================== 动画 ==================== */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes textGlitch {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(99,102,241,0); }
+        }
+
+        /* ==================== 响应式 ==================== */
         @media (max-width: 480px) {
-            .container { padding: 25px; }
-            .checkboxes { grid-template-columns: 1fr; }
-            .buttons { grid-template-columns: 1fr; }
-            .password-text { font-size: 14px; }
+            .charset-grid { grid-template-columns: 1fr; }
+            .btn-row-3 { grid-template-columns: 1fr 1fr; }
+            .password-text { font-size: 1rem; }
+            .vault-table { font-size: 0.75rem; }
+            .vault-table th, .vault-table td { padding: 8px 4px; }
         }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">Aa1.</div>
-            <h1>强密码生成器</h1>
-            <p class="subtitle">生成安全、随机的强密码</p>
-            <p class="version">v2.0.0 | 本地版</p>
+
+<div class="app">
+    <!-- Banner -->
+    <div class="banner">
+        <div class="banner-icon">🔐</div>
+        <h1>强密码生成器</h1>
+        <p class="banner-sub">安全生成 · 加密存储 · 离线可用</p>
+        <div class="banner-tags">
+            <span class="banner-tag">AES-256-GCM</span>
+            <span class="banner-tag">PBKDF2 480K</span>
+            <span class="banner-tag">Web Crypto</span>
+            <span class="banner-tag">零依赖</span>
         </div>
-        <div class="settings">
-            <div class="setting-group">
-                <div class="setting-label">
-                    <span>密码长度</span>
-                    <span class="setting-value" id="lengthValue">16</span>
-                </div>
-                <div class="slider-container">
-                    <input type="range" id="lengthSlider" min="8" max="128" value="16">
-                    <input type="number" id="lengthInput" min="8" max="128" value="16">
-                </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="generate" role="tab">⚡ 生成</button>
+        <button class="tab" data-tab="vault" role="tab">🔒 密码库</button>
+        <button class="tab" data-tab="history" role="tab">📜 历史</button>
+    </div>
+
+    <!-- ==================== 生成面板 ==================== -->
+    <div class="panel active" id="panel-generate">
+        <div class="card">
+            <div class="card-title">密码配置</div>
+            <div class="config-row">
+                <span class="config-label">密码长度</span>
+                <span class="config-value" id="lengthVal">16</span>
             </div>
-            <div class="setting-group">
-                <div class="setting-label"><span>字符类型</span></div>
-                <div class="checkboxes">
-                    <label class="checkbox-item"><input type="checkbox" id="uppercase" checked><span>大写字母 (A-Z)</span></label>
-                    <label class="checkbox-item"><input type="checkbox" id="lowercase" checked><span>小写字母 (a-z)</span></label>
-                    <label class="checkbox-item"><input type="checkbox" id="numbers" checked><span>数字 (0-9)</span></label>
-                    <label class="checkbox-item"><input type="checkbox" id="symbols" checked><span>特殊字符 (!@#$)</span></label>
-                    <label class="checkbox-item"><input type="checkbox" id="excludeConfusing"><span>排除混淆字符</span></label>
-                </div>
+            <div class="slider-row">
+                <input type="range" id="lengthSlider" min="8" max="128" value="16">
+                <input type="number" id="lengthNum" min="8" max="128" value="16">
+            </div>
+            <div class="charset-grid">
+                <div class="charset-item"><input type="checkbox" id="chkUpper" checked><label for="chkUpper">大写 A-Z</label></div>
+                <div class="charset-item"><input type="checkbox" id="chkLower" checked><label for="chkLower">小写 a-z</label></div>
+                <div class="charset-item"><input type="checkbox" id="chkDigits" checked><label for="chkDigits">数字 0-9</label></div>
+                <div class="charset-item"><input type="checkbox" id="chkSpecial" checked><label for="chkSpecial">特殊 !@#$</label></div>
+                <div class="charset-item" style="grid-column:1/-1"><input type="checkbox" id="chkExclude"><label for="chkExclude">排除易混淆字符 (0O1lI|)</label></div>
             </div>
         </div>
-        <div class="password-display" id="passwordDisplay">
-            <div class="password-text" id="passwordText">点击生成按钮创建密码</div>
+
+        <div class="password-display" id="pwdDisplay">
+            <div class="password-text" id="pwdText">点击生成按钮创建密码</div>
             <div class="strength-bar">
-                <div class="strength-meter"><div class="strength-fill" id="strengthFill"></div></div>
+                <div class="strength-track"><div class="strength-fill" id="strFill"></div></div>
                 <div class="strength-info">
-                    <span class="strength-level" id="strengthLevel">-</span>
-                    <span id="entropyInfo">-</span>
+                    <span class="strength-level" id="strLevel">—</span>
+                    <span class="strength-detail" id="strDetail">—</span>
                 </div>
             </div>
         </div>
-        <div class="buttons">
-            <button class="btn-generate" id="generateBtn">🔄 生成密码</button>
-            <button class="btn-copy" id="copyBtn">📋 复制</button>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btnGenerate">⚡ 生成密码</button>
+            <button class="btn btn-secondary" id="btnCopy">📋 复制</button>
         </div>
-        <div class="history" id="historySection" style="display: none;">
-            <div class="history-header">
-                <span class="history-title">📜 历史记录</span>
-                <div class="history-actions">
-                    <div class="dropdown">
-                        <span class="history-action" id="downloadBtn">⬇️ 下载</span>
-                        <div class="dropdown-content" id="downloadMenu">
-                            <div class="dropdown-item" data-format="txt"><span class="icon">📄</span><span>纯文本 (.txt)</span></div>
-                            <div class="dropdown-item" data-format="json"><span class="icon">📋</span><span>JSON (.json)</span></div>
-                            <div class="dropdown-item" data-format="csv"><span class="icon">📊</span><span>CSV (.csv)</span></div>
-                            <div class="dropdown-item" data-format="md"><span class="icon">📝</span><span>Markdown (.md)</span></div>
-                        </div>
-                    </div>
-                    <span class="history-action" id="clearHistory">🗑️ 清空</span>
+        <div class="btn-row">
+            <button class="btn btn-success btn-full" id="btnSaveVault">🔐 加密保存到密码库</button>
+        </div>
+    </div>
+
+    <!-- ==================== 密码库面板 ==================== -->
+    <div class="panel" id="panel-vault">
+        <!-- 未解锁状态 -->
+        <div class="card" id="vaultLocked">
+            <div class="vault-lock">
+                <div class="vault-lock-icon">🔒</div>
+                <h3 style="margin-bottom:8px">加密密码库</h3>
+                <p>输入主密码以解锁已保存的密码记录</p>
+                <div class="input-group">
+                    <input type="password" id="vaultMasterPwd" placeholder="输入主密码..." autocomplete="off">
+                    <button class="btn btn-primary" id="btnUnlock" style="white-space:nowrap">解锁</button>
                 </div>
-            </div>
-            <div class="history-list" id="historyList"></div>
-        </div>
-        <div class="footer">
-            <a href="https://github.com/zhuyikai2002/password-generator" target="_blank">⭐ GitHub 开源项目</a>
-            <span>可离线使用 | 数据仅保存在本地</span>
-        </div>
-    </div>
-    <div class="modal" id="downloadModal">
-        <div class="modal-content">
-            <div class="modal-title">📥 下载历史记录</div>
-            <div class="modal-desc" id="modalDesc">确定要下载吗？</div>
-            <div class="modal-buttons">
-                <button class="modal-btn modal-btn-cancel" id="modalCancel">取消</button>
-                <button class="modal-btn modal-btn-confirm" id="modalConfirm">确认下载</button>
+                <p style="margin-top:16px;font-size:0.75rem;color:var(--text-dim)" id="vaultStatus"></p>
             </div>
         </div>
+        <!-- 已解锁状态 -->
+        <div class="card" id="vaultUnlocked" style="display:none">
+            <div class="vault-summary">
+                <span id="vaultCount">0 条记录</span>
+                <button class="btn btn-secondary" id="btnLockVault" style="padding:6px 14px;font-size:0.75rem">🔒 锁定</button>
+            </div>
+            <div style="overflow-x:auto">
+                <table class="vault-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>密码</th>
+                            <th>强度</th>
+                            <th>时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vaultBody"></tbody>
+                </table>
+            </div>
+            <div class="vault-warning">⚠️ 密码已明文显示，查看后请及时锁定</div>
+            <div class="btn-row" style="margin-top:16px">
+                <button class="btn btn-secondary" id="btnExport">📥 导出 .enc</button>
+                <button class="btn btn-secondary" id="btnImport">📤 导入 .enc</button>
+            </div>
+            <input type="file" id="fileImport" accept=".enc,.json" style="display:none">
+        </div>
+        <!-- 空状态 -->
+        <div class="card" id="vaultEmpty" style="display:none">
+            <div class="vault-lock" style="padding:30px 20px">
+                <div style="font-size:36px;margin-bottom:12px">📭</div>
+                <p>密码库为空，请先在「生成」页面保存密码</p>
+                <div class="btn-row" style="margin-top:16px;max-width:300px;margin-left:auto;margin-right:auto">
+                    <button class="btn btn-secondary" id="btnImportEmpty">📤 导入 .enc 文件</button>
+                    <button class="btn btn-primary" id="btnGoGenerate">⚡ 去生成</button>
+                </div>
+                <input type="file" id="fileImportEmpty" accept=".enc,.json" style="display:none">
+            </div>
+        </div>
     </div>
-    <script>
-        const CHARS={uppercase:'ABCDEFGHIJKLMNOPQRSTUVWXYZ',lowercase:'abcdefghijklmnopqrstuvwxyz',numbers:'0123456789',symbols:'!@#$%^&*_+-=[]{}|;:,.<>?'};
-        const CONFUSING='0O1lI|';
-        let passwordHistory=JSON.parse(localStorage.getItem('pwdHistory')||'[]');
-        let pendingDownloadFormat=null;
-        const $=id=>document.getElementById(id);
-        const lengthSlider=$('lengthSlider'),lengthInput=$('lengthInput'),lengthValue=$('lengthValue'),passwordText=$('passwordText');
-        const generateBtn=$('generateBtn'),copyBtn=$('copyBtn'),strengthFill=$('strengthFill'),strengthLevel=$('strengthLevel'),entropyInfo=$('entropyInfo');
-        const historySection=$('historySection'),historyList=$('historyList'),clearHistory=$('clearHistory');
-        const downloadBtn=$('downloadBtn'),downloadMenu=$('downloadMenu'),downloadModal=$('downloadModal'),modalDesc=$('modalDesc'),modalCancel=$('modalCancel'),modalConfirm=$('modalConfirm');
-        
-        function updateLength(v){v=Math.max(8,Math.min(128,parseInt(v)||8));lengthSlider.value=v;lengthInput.value=v;lengthValue.textContent=v;}
-        lengthSlider.addEventListener('input',()=>updateLength(lengthSlider.value));
-        lengthInput.addEventListener('change',()=>updateLength(lengthInput.value));
-        lengthInput.addEventListener('input',()=>{lengthValue.textContent=lengthInput.value;});
-        
-        function secureRandom(max){const arr=new Uint32Array(1);crypto.getRandomValues(arr);return arr[0]%max;}
-        function generatePassword(){
-            const length=parseInt(lengthSlider.value),useUpper=$('uppercase').checked,useLower=$('lowercase').checked,useNum=$('numbers').checked,useSym=$('symbols').checked,excConf=$('excludeConfusing').checked;
-            let charset='',required=[];
-            if(useUpper){let c=CHARS.uppercase;if(excConf)c=c.split('').filter(x=>!CONFUSING.includes(x)).join('');charset+=c;if(c)required.push(c[secureRandom(c.length)]);}
-            if(useLower){let c=CHARS.lowercase;if(excConf)c=c.split('').filter(x=>!CONFUSING.includes(x)).join('');charset+=c;if(c)required.push(c[secureRandom(c.length)]);}
-            if(useNum){let c=CHARS.numbers;if(excConf)c=c.split('').filter(x=>!CONFUSING.includes(x)).join('');charset+=c;if(c)required.push(c[secureRandom(c.length)]);}
-            if(useSym){let c=CHARS.symbols;if(excConf)c=c.split('').filter(x=>!CONFUSING.includes(x)).join('');charset+=c;if(c)required.push(c[secureRandom(c.length)]);}
-            if(!charset){alert('请至少选择一种字符类型');return null;}
-            let pwd=[...required];for(let i=pwd.length;i<length;i++)pwd.push(charset[secureRandom(charset.length)]);
-            for(let i=pwd.length-1;i>0;i--){const j=secureRandom(i+1);[pwd[i],pwd[j]]=[pwd[j],pwd[i]];}
-            return pwd.join('');
+
+    <!-- ==================== 历史面板 ==================== -->
+    <div class="panel" id="panel-history">
+        <div class="card">
+            <div class="config-row">
+                <span class="card-title" style="margin-bottom:0">生成历史（本次会话）</span>
+                <button class="btn btn-danger" id="btnClearHist" style="padding:6px 12px;font-size:0.72rem">清空</button>
+            </div>
+            <div id="historyContainer">
+                <p style="text-align:center;color:var(--text-dim);font-size:0.85rem;padding:20px 0">暂无历史记录</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <a href="https://github.com/zhuyikai2002/password-generator" target="_blank">⭐ GitHub 开源</a>
+        <span style="display:block;margin-top:4px">v3.0 | 数据仅存本地 · 完全离线</span>
+    </div>
+</div>
+
+<!-- 保存主密码模态框 -->
+<div class="modal-overlay" id="modalSave">
+    <div class="modal">
+        <div class="modal-icon">🔐</div>
+        <h3>加密保存密码</h3>
+        <p>设置主密码来加密保存当前密码</p>
+        <div class="input-group" style="margin-bottom:12px;max-width:100%">
+            <input type="password" id="saveMasterPwd" placeholder="设置主密码..." style="flex:1" autocomplete="new-password">
+        </div>
+        <div class="input-group" style="margin-bottom:20px;max-width:100%">
+            <input type="password" id="saveConfirmPwd" placeholder="再次确认主密码..." style="flex:1" autocomplete="new-password">
+        </div>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-bottom:16px">⚠️ 如忘记主密码，已保存的密码将无法恢复</p>
+        <div class="btn-row">
+            <button class="btn btn-secondary" id="btnSaveCancel">取消</button>
+            <button class="btn btn-primary" id="btnSaveConfirm">确认保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== 常量 ====================
+const CHARS = {
+    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    lower: 'abcdefghijklmnopqrstuvwxyz',
+    digits: '0123456789',
+    special: '!@#$%^&*_+-=[]{}|;:,.<>?',
+};
+const CONFUSING = '0O1lI|';
+const VAULT_KEY = 'pwgenVault_v3';
+
+// ==================== DOM ====================
+const $ = id => document.getElementById(id);
+const lengthSlider = $('lengthSlider'), lengthNum = $('lengthNum'), lengthVal = $('lengthVal');
+const pwdText = $('pwdText'), strFill = $('strFill'), strLevel = $('strLevel'), strDetail = $('strDetail');
+const btnGenerate = $('btnGenerate'), btnCopy = $('btnCopy'), btnSaveVault = $('btnSaveVault');
+const vaultMasterPwd = $('vaultMasterPwd'), btnUnlock = $('btnUnlock'), vaultStatus = $('vaultStatus');
+const vaultLocked = $('vaultLocked'), vaultUnlocked = $('vaultUnlocked'), vaultEmpty = $('vaultEmpty');
+const vaultBody = $('vaultBody'), vaultCount = $('vaultCount');
+const modalSave = $('modalSave'), saveMasterPwd = $('saveMasterPwd'), saveConfirmPwd = $('saveConfirmPwd');
+const toast = $('toast');
+
+let sessionHistory = [];
+let currentPassword = null;
+let unlockedVaultData = null;
+let unlockedMasterPwd = null;
+
+// ==================== 密码生成 ====================
+function secureRandom(max) {
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return arr[0] % max;
+}
+
+function generatePassword() {
+    const length = parseInt(lengthSlider.value);
+    const useUpper = $('chkUpper').checked;
+    const useLower = $('chkLower').checked;
+    const useDigits = $('chkDigits').checked;
+    const useSpecial = $('chkSpecial').checked;
+    const exclude = $('chkExclude').checked;
+
+    const filter = s => exclude ? s.split('').filter(c => !CONFUSING.includes(c)).join('') : s;
+
+    let charset = '', required = [];
+    if (useUpper) { const c = filter(CHARS.upper); charset += c; if (c) required.push(c[secureRandom(c.length)]); }
+    if (useLower) { const c = filter(CHARS.lower); charset += c; if (c) required.push(c[secureRandom(c.length)]); }
+    if (useDigits) { const c = filter(CHARS.digits); charset += c; if (c) required.push(c[secureRandom(c.length)]); }
+    if (useSpecial) { const c = filter(CHARS.special); charset += c; if (c) required.push(c[secureRandom(c.length)]); }
+
+    if (!charset) { showToast('请至少选择一种字符类型', 'error'); return null; }
+
+    let pwd = [...required];
+    for (let i = pwd.length; i < length; i++) pwd.push(charset[secureRandom(charset.length)]);
+    for (let i = pwd.length - 1; i > 0; i--) { const j = secureRandom(i + 1); [pwd[i], pwd[j]] = [pwd[j], pwd[i]]; }
+    return pwd.join('');
+}
+
+// ==================== 强度评估 ====================
+function calcEntropy(p) {
+    let s = 0;
+    if (/[A-Z]/.test(p)) s += 26;
+    if (/[a-z]/.test(p)) s += 26;
+    if (/[0-9]/.test(p)) s += 10;
+    if (/[^A-Za-z0-9]/.test(p)) s += CHARS.special.length;
+    return s === 0 ? 0 : p.length * Math.log2(s);
+}
+
+function evalStrength(e) {
+    if (e < 28) return { level: '极弱', color: '#ef4444', pct: 12 };
+    if (e < 36) return { level: '弱', color: '#f97316', pct: 25 };
+    if (e < 60) return { level: '中等', color: '#f59e0b', pct: 45 };
+    if (e < 80) return { level: '强', color: '#10b981', pct: 68 };
+    if (e < 100) return { level: '很强', color: '#22d3ee', pct: 85 };
+    return { level: '极强', color: '#a855f7', pct: 100 };
+}
+
+function crackTime(e) {
+    const s = Math.pow(2, e) / 1e12;
+    const y = 31536000;
+    if (s < 1) return '瞬间';
+    if (s < 60) return `${s.toFixed(1)} 秒`;
+    if (s < 3600) return `${(s / 60).toFixed(1)} 分钟`;
+    if (s < 86400) return `${(s / 3600).toFixed(1)} 小时`;
+    if (s < y) return `${(s / 86400).toFixed(1)} 天`;
+    if (s < y * 100) return `${(s / y).toFixed(1)} 年`;
+    if (s < y * 1e6) return `${(s / y / 1e3).toFixed(1)} 千年`;
+    if (s < y * 1e9) return `${(s / y / 1e6).toFixed(1)} 百万年`;
+    return '宇宙年龄级别';
+}
+
+function updateDisplay(pwd) {
+    currentPassword = pwd;
+    pwdText.textContent = pwd;
+    const ent = calcEntropy(pwd);
+    const st = evalStrength(ent);
+    strFill.style.width = st.pct + '%';
+    strFill.style.background = st.color;
+    strLevel.textContent = st.level;
+    strLevel.style.color = st.color;
+    strDetail.textContent = `熵值: ${ent.toFixed(1)} bits · 破解: ${crackTime(ent)}`;
+}
+
+// ==================== 生成动画 ====================
+function animateGenerate() {
+    pwdText.classList.add('generating');
+    let count = 0;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    const len = parseInt(lengthSlider.value);
+    const iv = setInterval(() => {
+        let s = '';
+        for (let i = 0; i < len; i++) s += chars[secureRandom(chars.length)];
+        pwdText.textContent = s;
+        count++;
+        if (count >= 6) {
+            clearInterval(iv);
+            pwdText.classList.remove('generating');
+            const pwd = generatePassword();
+            if (pwd) {
+                updateDisplay(pwd);
+                addToHistory(pwd);
+            }
         }
-        function calcEntropy(p){let s=0;if(/[A-Z]/.test(p))s+=26;if(/[a-z]/.test(p))s+=26;if(/[0-9]/.test(p))s+=10;if(/[^A-Za-z0-9]/.test(p))s+=32;return p.length*Math.log2(s||1);}
-        function evalStrength(e){if(e<28)return{level:'极弱',color:'#f44336',percent:15};if(e<36)return{level:'弱',color:'#ff9800',percent:30};if(e<60)return{level:'中等',color:'#ffeb3b',percent:50};if(e<80)return{level:'强',color:'#8bc34a',percent:70};if(e<100)return{level:'很强',color:'#4caf50',percent:85};return{level:'极强',color:'#2196f3',percent:100};}
-        function crackTime(e){const s=Math.pow(2,e)/1e12;if(s<1)return'瞬间';if(s<60)return`${s.toFixed(0)}秒`;if(s<3600)return`${(s/60).toFixed(0)}分钟`;if(s<86400)return`${(s/3600).toFixed(0)}小时`;if(s<31536000)return`${(s/86400).toFixed(0)}天`;if(s<31536000*1000)return`${(s/31536000).toFixed(0)}年`;return'宇宙年龄级别';}
-        function updateDisplay(p){passwordText.textContent=p;const e=calcEntropy(p),st=evalStrength(e);strengthFill.style.width=`${st.percent}%`;strengthFill.style.background=st.color;strengthLevel.textContent=st.level;strengthLevel.style.color=st.color;entropyInfo.textContent=`熵值:${e.toFixed(1)}bits | 破解:${crackTime(e)}`;}
-        function addToHistory(p){const rec={password:p,length:p.length,entropy:calcEntropy(p).toFixed(1),createdAt:new Date().toISOString()};passwordHistory.unshift(rec);if(passwordHistory.length>20)passwordHistory.pop();localStorage.setItem('pwdHistory',JSON.stringify(passwordHistory));renderHistory();}
-        function renderHistory(){if(passwordHistory.length===0){historySection.style.display='none';return;}historySection.style.display='block';historyList.innerHTML=passwordHistory.map((item,i)=>{const pwd=typeof item==='string'?item:item.password;return`<div class="history-item"><span class="history-password">${pwd}</span><div class="history-item-actions"><button class="history-copy" onclick="copyToClipboard('${pwd}')">复制</button><button class="history-delete" onclick="deleteHistory(${i})">删除</button></div></div>`;}).join('');}
-        function deleteHistory(i){passwordHistory.splice(i,1);localStorage.setItem('pwdHistory',JSON.stringify(passwordHistory));renderHistory();}
-        async function copyToClipboard(t){try{await navigator.clipboard.writeText(t);showCopySuccess();}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showCopySuccess();}}
-        function showCopySuccess(){copyBtn.textContent='✓ 已复制';copyBtn.classList.add('copied');setTimeout(()=>{copyBtn.textContent='📋 复制';copyBtn.classList.remove('copied');},2000);}
-        function genDownloadContent(fmt){const ts=new Date().toLocaleString('zh-CN');switch(fmt){case'txt':let txt=`密码生成器 - 历史记录\n导出时间: ${ts}\n${'='.repeat(50)}\n\n`;passwordHistory.forEach((item,i)=>{const pwd=typeof item==='string'?item:item.password;txt+=`${i+1}. ${pwd}\n`;});return{content:txt,mime:'text/plain',ext:'txt'};case'json':const json={exportedAt:new Date().toISOString(),count:passwordHistory.length,passwords:passwordHistory.map((item,i)=>({index:i+1,password:typeof item==='string'?item:item.password,length:typeof item==='string'?item.length:item.length,entropy:typeof item==='string'?calcEntropy(item).toFixed(1):item.entropy}))};return{content:JSON.stringify(json,null,2),mime:'application/json',ext:'json'};case'csv':let csv='序号,密码,长度,熵值\n';passwordHistory.forEach((item,i)=>{const pwd=typeof item==='string'?item:item.password;const len=typeof item==='string'?item.length:item.length;const ent=typeof item==='string'?calcEntropy(item).toFixed(1):item.entropy;csv+=`${i+1},"${pwd}",${len},${ent}\n`;});return{content:csv,mime:'text/csv',ext:'csv'};case'md':let md=`# 密码生成器 - 历史记录\n\n> 导出时间: ${ts}\n\n| 序号 | 密码 | 长度 | 熵值 |\n|------|------|------|------|\n`;passwordHistory.forEach((item,i)=>{const pwd=typeof item==='string'?item:item.password;const len=typeof item==='string'?item.length:item.length;const ent=typeof item==='string'?calcEntropy(item).toFixed(1):item.entropy;md+=`| ${i+1} | \`${pwd}\` | ${len} | ${ent} |\n`;});return{content:md,mime:'text/markdown',ext:'md'};}}
-        function downloadFile(fmt){const{content,mime,ext}=genDownloadContent(fmt);const blob=new Blob([content],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`passwords_${new Date().toISOString().slice(0,10)}.${ext}`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
-        generateBtn.addEventListener('click',()=>{const p=generatePassword();if(p){updateDisplay(p);addToHistory(p);}});
-        copyBtn.addEventListener('click',()=>{const p=passwordText.textContent;if(p&&p!=='点击生成按钮创建密码')copyToClipboard(p);});
-        clearHistory.addEventListener('click',()=>{if(confirm('确定要清空所有历史记录吗？')){passwordHistory=[];localStorage.removeItem('pwdHistory');renderHistory();}});
-        downloadBtn.addEventListener('click',e=>{e.stopPropagation();downloadMenu.classList.toggle('show');});
-        document.querySelectorAll('.dropdown-item').forEach(item=>{item.addEventListener('click',()=>{const fmt=item.dataset.format;pendingDownloadFormat=fmt;const fmtNames={txt:'纯文本(TXT)',json:'JSON',csv:'CSV表格',md:'Markdown'};modalDesc.textContent=`确定要将${passwordHistory.length}条记录下载为${fmtNames[fmt]}格式吗？`;downloadMenu.classList.remove('show');downloadModal.classList.add('show');});});
-        modalCancel.addEventListener('click',()=>{downloadModal.classList.remove('show');pendingDownloadFormat=null;});
-        modalConfirm.addEventListener('click',()=>{if(pendingDownloadFormat)downloadFile(pendingDownloadFormat);downloadModal.classList.remove('show');pendingDownloadFormat=null;});
-        document.addEventListener('click',()=>{downloadMenu.classList.remove('show');});
-        downloadModal.addEventListener('click',e=>{if(e.target===downloadModal)downloadModal.classList.remove('show');});
-        renderHistory();
-        const initPwd=generatePassword();if(initPwd)updateDisplay(initPwd);
-    </script>
+    }, 50);
+}
+
+// ==================== Web Crypto 加密 ====================
+async function deriveKey(masterPassword, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw', enc.encode(masterPassword), 'PBKDF2', false, ['deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: 480000, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+async function encryptData(data, masterPassword) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveKey(masterPassword, salt);
+    const enc = new TextEncoder();
+    const ciphertext = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        enc.encode(JSON.stringify(data))
+    );
+    return {
+        salt: arrayToBase64(salt),
+        iv: arrayToBase64(iv),
+        ciphertext: arrayToBase64(new Uint8Array(ciphertext)),
+        version: 3,
+    };
+}
+
+async function decryptData(encrypted, masterPassword) {
+    const salt = base64ToArray(encrypted.salt);
+    const iv = base64ToArray(encrypted.iv);
+    const ciphertext = base64ToArray(encrypted.ciphertext);
+    const key = await deriveKey(masterPassword, salt);
+    const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        ciphertext
+    );
+    return JSON.parse(new TextDecoder().decode(decrypted));
+}
+
+function arrayToBase64(arr) {
+    return btoa(String.fromCharCode(...arr));
+}
+
+function base64ToArray(b64) {
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+}
+
+// ==================== 密码库操作 ====================
+async function saveToVault(pwd, masterPassword) {
+    const ent = calcEntropy(pwd);
+    const st = evalStrength(ent);
+    const record = {
+        password: pwd,
+        length: pwd.length,
+        entropy: ent.toFixed(2),
+        strength: st.level,
+        createdAt: new Date().toISOString(),
+    };
+
+    let vaultData = [];
+    const existing = localStorage.getItem(VAULT_KEY);
+    if (existing) {
+        try {
+            const parsed = JSON.parse(existing);
+            vaultData = await decryptData(parsed, masterPassword);
+        } catch {
+            // Key mismatch or first save — overwrite
+        }
+    }
+    vaultData.push(record);
+    const encrypted = await encryptData(vaultData, masterPassword);
+    localStorage.setItem(VAULT_KEY, JSON.stringify(encrypted));
+    return vaultData.length;
+}
+
+async function loadVault(masterPassword) {
+    const raw = localStorage.getItem(VAULT_KEY);
+    if (!raw) return null;
+    const encrypted = JSON.parse(raw);
+    return await decryptData(encrypted, masterPassword);
+}
+
+async function deleteFromVault(index, masterPassword) {
+    const data = await loadVault(masterPassword);
+    if (!data) return;
+    data.splice(index, 1);
+    if (data.length === 0) {
+        localStorage.removeItem(VAULT_KEY);
+    } else {
+        const encrypted = await encryptData(data, masterPassword);
+        localStorage.setItem(VAULT_KEY, JSON.stringify(encrypted));
+    }
+    return data;
+}
+
+function renderVault(data) {
+    unlockedVaultData = data;
+    if (!data || data.length === 0) {
+        vaultUnlocked.style.display = 'none';
+        vaultEmpty.style.display = 'block';
+        return;
+    }
+    vaultEmpty.style.display = 'none';
+    vaultUnlocked.style.display = 'block';
+    vaultCount.textContent = `${data.length} 条记录`;
+
+    vaultBody.innerHTML = data.map((r, i) => {
+        const st = evalStrength(parseFloat(r.entropy));
+        const time = r.createdAt ? r.createdAt.slice(0, 16).replace('T', ' ') : '-';
+        return `<tr>
+            <td style="color:var(--text-dim)">${i + 1}</td>
+            <td class="vault-pwd">${escapeHtml(r.password)}</td>
+            <td><span style="color:${st.color}">${r.strength}</span></td>
+            <td style="white-space:nowrap">${time}</td>
+            <td class="vault-actions">
+                <button class="vault-btn vault-btn-copy" onclick="copyText('${escapeJs(r.password)}')">复制</button>
+                <button class="vault-btn vault-btn-del" onclick="vaultDelete(${i})">删除</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function escapeJs(s) {
+    return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+// ==================== 导入导出 ====================
+function exportVault() {
+    const raw = localStorage.getItem(VAULT_KEY);
+    if (!raw) { showToast('密码库为空', 'warning'); return; }
+    const blob = new Blob([raw], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `passwords_${new Date().toISOString().slice(0, 10)}.enc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('已导出加密文件', 'success');
+}
+
+function handleImport(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!data.salt || !data.iv || !data.ciphertext) {
+                showToast('文件格式无效', 'error');
+                return;
+            }
+            localStorage.setItem(VAULT_KEY, JSON.stringify(data));
+            showToast('导入成功，请输入主密码解锁', 'success');
+            lockVault();
+            switchTab('vault');
+        } catch {
+            showToast('文件解析失败', 'error');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ==================== 历史记录 ====================
+function addToHistory(pwd) {
+    const ent = calcEntropy(pwd);
+    const st = evalStrength(ent);
+    sessionHistory.unshift({ password: pwd, strength: st.level, color: st.color, time: new Date().toLocaleTimeString('zh-CN') });
+    if (sessionHistory.length > 30) sessionHistory.pop();
+    renderHistory();
+}
+
+function renderHistory() {
+    const container = $('historyContainer');
+    if (sessionHistory.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-dim);font-size:0.85rem;padding:20px 0">暂无历史记录</p>';
+        return;
+    }
+    container.innerHTML = sessionHistory.map(h => `
+        <div class="history-item">
+            <span class="history-pwd">${escapeHtml(h.password)}</span>
+            <span style="color:${h.color};font-size:0.72rem;margin-right:8px">${h.strength}</span>
+            <span style="color:var(--text-dim);font-size:0.7rem;margin-right:8px">${h.time}</span>
+            <button class="vault-btn vault-btn-copy" onclick="copyText('${escapeJs(h.password)}')">复制</button>
+        </div>
+    `).join('');
+}
+
+// ==================== UI 交互 ====================
+function showToast(msg, type = 'success') {
+    toast.textContent = msg;
+    toast.className = `toast toast-${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+async function copyText(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast('已复制到剪贴板', 'success');
+    } catch {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('已复制到剪贴板', 'success');
+    }
+}
+
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+}
+
+function lockVault() {
+    unlockedVaultData = null;
+    unlockedMasterPwd = null;
+    vaultLocked.style.display = 'block';
+    vaultUnlocked.style.display = 'none';
+    vaultEmpty.style.display = 'none';
+    vaultMasterPwd.value = '';
+    vaultStatus.textContent = localStorage.getItem(VAULT_KEY) ? '检测到已有加密数据' : '';
+}
+
+async function unlockVault() {
+    const pwd = vaultMasterPwd.value;
+    if (!pwd) { vaultStatus.textContent = '请输入主密码'; vaultStatus.style.color = 'var(--accent-red)'; return; }
+
+    const raw = localStorage.getItem(VAULT_KEY);
+    if (!raw) {
+        vaultLocked.style.display = 'none';
+        vaultEmpty.style.display = 'block';
+        return;
+    }
+
+    vaultStatus.textContent = '正在解密...';
+    vaultStatus.style.color = 'var(--accent-cyan)';
+
+    try {
+        const data = await loadVault(pwd);
+        unlockedMasterPwd = pwd;
+        vaultLocked.style.display = 'none';
+        renderVault(data);
+        showToast(`解密成功，共 ${data.length} 条记录`, 'success');
+    } catch {
+        vaultStatus.textContent = '❌ 主密码错误，无法解密';
+        vaultStatus.style.color = 'var(--accent-red)';
+    }
+}
+
+async function vaultDelete(index) {
+    if (!unlockedMasterPwd) return;
+    try {
+        const data = await deleteFromVault(index, unlockedMasterPwd);
+        renderVault(data);
+        showToast('已删除', 'success');
+    } catch {
+        showToast('删除失败', 'error');
+    }
+}
+
+// ==================== 事件绑定 ====================
+// 长度控制
+function syncLength(val) {
+    val = Math.max(8, Math.min(128, parseInt(val) || 8));
+    lengthSlider.value = val;
+    lengthNum.value = val;
+    lengthVal.textContent = val;
+}
+lengthSlider.addEventListener('input', () => syncLength(lengthSlider.value));
+lengthNum.addEventListener('change', () => syncLength(lengthNum.value));
+
+// 生成
+btnGenerate.addEventListener('click', animateGenerate);
+
+// 复制
+btnCopy.addEventListener('click', () => {
+    if (!currentPassword) return;
+    copyText(currentPassword);
+    btnCopy.innerHTML = '✓ 已复制';
+    btnCopy.classList.add('copied');
+    setTimeout(() => { btnCopy.innerHTML = '📋 复制'; btnCopy.classList.remove('copied'); }, 1500);
+});
+
+// 加密保存 — 弹出模态框
+btnSaveVault.addEventListener('click', () => {
+    if (!currentPassword) { showToast('请先生成密码', 'warning'); return; }
+    // 如果已有解锁状态，直接保存
+    if (unlockedMasterPwd) {
+        saveToVault(currentPassword, unlockedMasterPwd).then(count => {
+            showToast(`已加密保存，密码库共 ${count} 条`, 'success');
+        }).catch(() => showToast('保存失败', 'error'));
+        return;
+    }
+    saveMasterPwd.value = '';
+    saveConfirmPwd.value = '';
+    modalSave.classList.add('show');
+});
+
+$('btnSaveCancel').addEventListener('click', () => modalSave.classList.remove('show'));
+$('btnSaveConfirm').addEventListener('click', async () => {
+    const pwd = saveMasterPwd.value;
+    const confirm = saveConfirmPwd.value;
+    if (!pwd) { showToast('主密码不能为空', 'error'); return; }
+    if (pwd !== confirm) { showToast('两次密码不一致', 'error'); return; }
+    try {
+        const count = await saveToVault(currentPassword, pwd);
+        unlockedMasterPwd = pwd;
+        modalSave.classList.remove('show');
+        showToast(`已加密保存，密码库共 ${count} 条`, 'success');
+    } catch (e) {
+        showToast('加密保存失败: ' + e.message, 'error');
+    }
+});
+modalSave.addEventListener('click', e => { if (e.target === modalSave) modalSave.classList.remove('show'); });
+
+// Tab 导航
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        switchTab(tab.dataset.tab);
+        if (tab.dataset.tab === 'vault') {
+            if (!unlockedMasterPwd) lockVault();
+        }
+    });
+});
+
+// 密码库解锁
+btnUnlock.addEventListener('click', unlockVault);
+vaultMasterPwd.addEventListener('keydown', e => { if (e.key === 'Enter') unlockVault(); });
+$('btnLockVault').addEventListener('click', lockVault);
+
+// 导入导出
+$('btnExport').addEventListener('click', exportVault);
+$('btnImport').addEventListener('click', () => $('fileImport').click());
+$('fileImport').addEventListener('change', e => { if (e.target.files[0]) handleImport(e.target.files[0]); e.target.value = ''; });
+$('btnImportEmpty').addEventListener('click', () => $('fileImportEmpty').click());
+$('fileImportEmpty').addEventListener('change', e => { if (e.target.files[0]) handleImport(e.target.files[0]); e.target.value = ''; });
+$('btnGoGenerate').addEventListener('click', () => switchTab('generate'));
+
+// 清空历史
+$('btnClearHist').addEventListener('click', () => {
+    sessionHistory = [];
+    renderHistory();
+    showToast('历史已清空', 'success');
+});
+
+// 回车提交主密码
+saveMasterPwd.addEventListener('keydown', e => { if (e.key === 'Enter') saveConfirmPwd.focus(); });
+saveConfirmPwd.addEventListener('keydown', e => { if (e.key === 'Enter') $('btnSaveConfirm').click(); });
+
+// ==================== 初始化 ====================
+(function init() {
+    const pwd = generatePassword();
+    if (pwd) {
+        updateDisplay(pwd);
+        addToHistory(pwd);
+    }
+    if (localStorage.getItem(VAULT_KEY)) {
+        vaultStatus.textContent = '检测到已有加密数据';
+        vaultStatus.style.color = 'var(--accent-cyan)';
+    }
+})();
+</script>
+
 </body>
 </html>
