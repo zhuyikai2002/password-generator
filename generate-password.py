@@ -23,6 +23,13 @@ from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+from rich.prompt import Prompt, Confirm, IntPrompt
+from rich import box
+
 try:
     import paramiko
     HAS_PARAMIKO = True
@@ -34,6 +41,9 @@ try:
     load_dotenv()
 except ImportError:
     pass
+
+# Rich 终端实例
+console = Console()
 
 
 # ==================== 配置 ====================
@@ -281,28 +291,52 @@ def load_history() -> list:
     return []
 
 
+def _strength_style(strength: str) -> str:
+    """根据强度返回 rich 颜色样式"""
+    styles = {
+        "极弱": "bold red", "弱": "red",
+        "中等": "yellow", "强": "green",
+        "很强": "bold green", "极强": "bold bright_magenta",
+    }
+    return styles.get(strength, "white")
+
+
 def show_history():
     """显示历史记录"""
     history = load_history()
     
     if not history:
-        print("暂无历史记录")
+        console.print("\n[dim]暂无历史记录[/dim]")
         return
     
-    print("\n" + "=" * 60)
-    print("                    密码生成历史")
-    print("=" * 60)
-    print(f"{'序号':<6}{'长度':<8}{'强度':<10}{'熵值':<12}{'生成时间'}")
-    print("-" * 60)
+    table = Table(
+        title="密码生成历史",
+        box=box.ROUNDED,
+        border_style="bright_blue",
+        title_style="bold bright_cyan",
+        row_styles=["", "dim"],
+    )
+    table.add_column("序号", style="cyan", justify="center", width=6)
+    table.add_column("长度", justify="center", width=6)
+    table.add_column("强度", justify="center", width=8)
+    table.add_column("熵值 (bits)", justify="center", width=12)
+    table.add_column("生成时间", style="dim")
     
     for i, record in enumerate(reversed(history[-20:]), 1):
         created = record.get('created_at', '')[:19].replace('T', ' ')
-        print(f"{i:<6}{record.get('length', '-'):<8}{record.get('strength', '-'):<10}"
-              f"{record.get('entropy', '-'):<12}{created}")
+        strength = record.get('strength', '-')
+        style = _strength_style(strength)
+        table.add_row(
+            str(i),
+            str(record.get('length', '-')),
+            f"[{style}]{strength}[/{style}]",
+            str(record.get('entropy', '-')),
+            created,
+        )
     
-    print("=" * 60)
-    print(f"共 {len(history)} 条记录（显示最近 20 条）")
-    print("注意：历史记录只保存哈希值，不保存明文密码\n")
+    console.print()
+    console.print(table)
+    console.print(f"  [dim]共 {len(history)} 条记录（显示最近 20 条） · 历史记录只保存哈希值，不保存明文密码[/dim]\n")
 
 
 # ==================== 加密存储 ====================
@@ -346,7 +380,7 @@ def encrypt_and_save(passwords_data: list, master_password: str):
             decrypted = fernet.decrypt(encrypted)
             existing_data = json.loads(decrypted.decode('utf-8'))
         except InvalidToken:
-            print("\n⚠ 警告: 主密码与之前保存时不一致，将覆盖旧数据。")
+            console.print("\n[bold yellow]⚠ 警告: 主密码与之前保存时不一致，将覆盖旧数据。[/bold yellow]")
             existing_data = []
         except Exception:
             existing_data = []
@@ -361,8 +395,8 @@ def encrypt_and_save(passwords_data: list, master_password: str):
     with open(ENCRYPTED_FILE, 'wb') as f:
         f.write(encrypted)
 
-    print(f"\n✓ 已加密保存 {len(passwords_data)} 条密码到: {ENCRYPTED_FILE}")
-    print(f"  当前共存储 {len(existing_data)} 条密码记录")
+    console.print(f"\n[bold green]✓ 已加密保存 {len(passwords_data)} 条密码到:[/bold green] {ENCRYPTED_FILE}")
+    console.print(f"  [dim]当前共存储 {len(existing_data)} 条密码记录[/dim]")
 
     # 触发云端同步（如已配置）
     sync_after_save()
@@ -371,7 +405,7 @@ def encrypt_and_save(passwords_data: list, master_password: str):
 def decrypt_and_load(master_password: str) -> list:
     """解密并加载密码数据"""
     if not ENCRYPTED_FILE.exists():
-        print("\n⚠ 暂无加密密码文件，请先生成并保存密码。")
+        console.print("\n[bold yellow]⚠ 暂无加密密码文件，请先生成并保存密码。[/bold yellow]")
         return []
 
     salt = get_or_create_salt()
@@ -387,20 +421,23 @@ def decrypt_and_load(master_password: str) -> list:
 
 def save_passwords_encrypted(passwords: list, analyses: list):
     """交互式加密保存入口"""
-    print("\n" + "=" * 58)
-    print("            加密保存密码到本地")
-    print("=" * 58)
-    print("\n密码将使用主密码加密后保存，请牢记您的主密码！")
-    print("如果忘记主密码，已保存的密码将无法恢复。\n")
+    console.print()
+    console.print(Panel(
+        "[dim]密码将使用主密码加密后保存，请牢记您的主密码！\n如果忘记主密码，已保存的密码将无法恢复。[/dim]",
+        title="[bold bright_cyan]🔐 加密保存密码到本地[/bold bright_cyan]",
+        border_style="bright_blue", box=box.ROUNDED, padding=(1, 2),
+    ))
 
-    master_pwd = getpass.getpass("请输入主密码 (Master Password): ")
+    console.print("  [bold]🔒 请输入主密码[/bold] [dim](输入时不会显示字符)[/dim]")
+    master_pwd = getpass.getpass("  Master Password: ")
     if not master_pwd:
-        print("\n✗ 主密码不能为空")
+        console.print("\n[bold red]✗ 主密码不能为空[/bold red]")
         return
 
-    confirm_pwd = getpass.getpass("请再次确认主密码: ")
+    console.print("  [bold]🔒 请再次确认主密码[/bold]")
+    confirm_pwd = getpass.getpass("  Confirm Password: ")
     if master_pwd != confirm_pwd:
-        print("\n✗ 两次输入的主密码不一致")
+        console.print("\n[bold red]✗ 两次输入的主密码不一致[/bold red]")
         return
 
     # 构建保存数据
@@ -417,49 +454,68 @@ def save_passwords_encrypted(passwords: list, analyses: list):
     try:
         encrypt_and_save(passwords_data, master_pwd)
     except Exception as e:
-        print(f"\n✗ 加密保存失败: {e}")
+        console.print(f"\n[bold red]✗ 加密保存失败: {e}[/bold red]")
 
 
 def read_passwords_encrypted():
     """交互式解密读取入口"""
-    print("\n" + "=" * 58)
-    print("            解密读取已保存的密码")
-    print("=" * 58)
+    console.print()
+    console.print(Panel(
+        "[dim]输入主密码以解密查看已保存的密码记录[/dim]",
+        title="[bold bright_cyan]🔓 解密读取已保存的密码[/bold bright_cyan]",
+        border_style="bright_blue", box=box.ROUNDED, padding=(1, 2),
+    ))
 
     if not ENCRYPTED_FILE.exists():
-        print("\n⚠ 暂无加密密码文件，请先生成并保存密码。")
+        console.print("\n[bold yellow]⚠ 暂无加密密码文件，请先生成并保存密码。[/bold yellow]")
         return
 
-    master_pwd = getpass.getpass("\n请输入主密码 (Master Password): ")
+    console.print("  [bold]🔒 请输入主密码[/bold] [dim](输入时不会显示字符)[/dim]")
+    master_pwd = getpass.getpass("  Master Password: ")
 
     try:
         data = decrypt_and_load(master_pwd)
     except InvalidToken:
-        print("\n✗ 主密码错误！无法解密。请确认您输入的主密码是否正确。")
+        console.print("\n[bold red]✗ 主密码错误！无法解密。请确认您输入的主密码是否正确。[/bold red]")
         return
     except Exception as e:
-        print(f"\n✗ 解密失败: {e}")
+        console.print(f"\n[bold red]✗ 解密失败: {e}[/bold red]")
         return
 
     if not data:
-        print("\n暂无已保存的密码记录。")
+        console.print("\n[dim]暂无已保存的密码记录。[/dim]")
         return
 
-    print(f"\n✓ 解密成功！共找到 {len(data)} 条密码记录：\n")
-    print(f"{'序号':<6}{'密码':<30}{'长度':<6}{'强度':<8}{'熵值':<10}{'保存时间'}")
-    print("-" * 80)
+    console.print(f"\n[bold green]✓ 解密成功！[/bold green]共找到 [bold]{len(data)}[/bold] 条密码记录：")
+
+    table = Table(
+        box=box.ROUNDED,
+        border_style="green",
+        row_styles=["", "dim"],
+    )
+    table.add_column("序号", style="cyan", justify="center", width=6)
+    table.add_column("密码", style="bold bright_white", min_width=20)
+    table.add_column("长度", justify="center", width=6)
+    table.add_column("强度", justify="center", width=8)
+    table.add_column("熵值", justify="center", width=10)
+    table.add_column("保存时间", style="dim")
 
     for i, record in enumerate(data, 1):
         pwd = record.get('password', '???')
-        length = record.get('length', '-')
         strength = record.get('strength', '-')
-        entropy = record.get('entropy', '-')
-        created = record.get('created_at', '')[:19].replace('T', ' ')
-        print(f"{i:<6}{pwd:<30}{length:<6}{strength:<8}{entropy:<10}{created}")
+        style = _strength_style(strength)
+        table.add_row(
+            str(i),
+            pwd,
+            str(record.get('length', '-')),
+            f"[{style}]{strength}[/{style}]",
+            str(record.get('entropy', '-')),
+            record.get('created_at', '')[:19].replace('T', ' '),
+        )
 
-    print("-" * 80)
-    print(f"\n共 {len(data)} 条记录")
-    print("⚠ 请注意：密码已在终端明文显示，阅读后请及时清屏。\n")
+    console.print(table)
+    console.print(f"  [dim]共 {len(data)} 条记录[/dim]")
+    console.print("  [bold yellow]⚠ 请注意：密码已在终端明文显示，阅读后请及时清屏。[/bold yellow]\n")
 
 
 # ==================== SFTP 云端同步 ====================
@@ -536,22 +592,22 @@ def _get_local_mtime(local_path) -> float:
 def sftp_push(force: bool = False):
     """上传 .enc + .salt 到远程服务器（含时间戳比对）"""
     if not sftp_is_configured():
-        print("\n⚠ SFTP 未配置，跳过云端同步。请配置 .env 文件后重试。")
+        console.print("\n[bold yellow]⚠ SFTP 未配置，跳过云端同步。请配置 .env 文件后重试。[/bold yellow]")
         return
 
     if not ENCRYPTED_FILE.exists():
-        print("\n⚠ 本地无加密文件，请先生成并保存密码。")
+        console.print("\n[bold yellow]⚠ 本地无加密文件，请先生成并保存密码。[/bold yellow]")
         return
 
-    print("\n☁ 正在连接 SFTP 服务器...")
+    console.print("\n[bold blue]☁ 正在连接 SFTP 服务器...[/bold blue]")
 
     try:
         ssh, sftp = create_sftp_client()
     except paramiko.AuthenticationException:
-        print("✗ SFTP 认证失败，请检查用户名/密码/密钥配置。")
+        console.print("[bold red]✗ SFTP 认证失败，请检查用户名/密码/密钥配置。[/bold red]")
         return
     except (paramiko.SSHException, socket.timeout, OSError) as e:
-        print(f"✗ SFTP 连接失败: {e}")
+        console.print(f"[bold red]✗ SFTP 连接失败: {e}[/bold red]")
         return
 
     try:
@@ -566,13 +622,13 @@ def sftp_push(force: bool = False):
             remote_mtime = _get_remote_mtime(sftp, remote_enc)
 
             if remote_mtime > 0 and local_mtime < remote_mtime:
-                print("\n⚠️ 发现服务器端有更新的密码记录！强制上传将覆盖远端数据。")
+                console.print("\n[bold red]⚠️ 发现服务器端有更新的密码记录！强制上传将覆盖远端数据。[/bold red]")
                 try:
-                    confirm = input("是否继续？[y/N]: ").strip().lower()
+                    if not Confirm.ask("是否继续", default=False):
+                        console.print("[dim]已取消上传。建议先执行 --sync-pull 拉取最新数据。[/dim]")
+                        return
                 except (EOFError, KeyboardInterrupt):
-                    confirm = "n"
-                if confirm != 'y':
-                    print("已取消上传。建议先执行 --sync-pull 拉取最新数据。")
+                    console.print("\n[dim]已取消[/dim]")
                     return
 
         # 上传文件
@@ -580,10 +636,10 @@ def sftp_push(force: bool = False):
         if SALT_FILE.exists():
             sftp.put(str(SALT_FILE), remote_salt)
 
-        print(f"✓ 已上传到 {SFTP_HOST}:{REMOTE_DIR}")
+        console.print(f"[bold green]✓ 已上传到 {SFTP_HOST}:{REMOTE_DIR}[/bold green]")
 
     except Exception as e:
-        print(f"✗ 上传失败: {e}")
+        console.print(f"[bold red]✗ 上传失败: {e}[/bold red]")
     finally:
         sftp.close()
         ssh.close()
@@ -592,18 +648,18 @@ def sftp_push(force: bool = False):
 def sftp_pull(force: bool = False):
     """从远程服务器下载 .enc + .salt 到本地（含时间戳比对）"""
     if not sftp_is_configured():
-        print("\n⚠ SFTP 未配置，请配置 .env 文件后重试。")
+        console.print("\n[bold yellow]⚠ SFTP 未配置，请配置 .env 文件后重试。[/bold yellow]")
         return
 
-    print("\n☁ 正在连接 SFTP 服务器...")
+    console.print("\n[bold blue]☁ 正在连接 SFTP 服务器...[/bold blue]")
 
     try:
         ssh, sftp = create_sftp_client()
     except paramiko.AuthenticationException:
-        print("✗ SFTP 认证失败，请检查用户名/密码/密钥配置。")
+        console.print("[bold red]✗ SFTP 认证失败，请检查用户名/密码/密钥配置。[/bold red]")
         return
     except (paramiko.SSHException, socket.timeout, OSError) as e:
-        print(f"✗ SFTP 连接失败: {e}")
+        console.print(f"[bold red]✗ SFTP 连接失败: {e}[/bold red]")
         return
 
     try:
@@ -613,7 +669,7 @@ def sftp_pull(force: bool = False):
         # 检查远程文件是否存在
         remote_mtime = _get_remote_mtime(sftp, remote_enc)
         if remote_mtime == 0:
-            print("\n⚠ 服务器上暂无密码文件。")
+            console.print("\n[bold yellow]⚠ 服务器上暂无密码文件。[/bold yellow]")
             return
 
         # 时间戳比对
@@ -621,13 +677,13 @@ def sftp_pull(force: bool = False):
             local_mtime = _get_local_mtime(ENCRYPTED_FILE)
 
             if local_mtime > 0 and remote_mtime < local_mtime:
-                print("\n⚠️ 本地密码记录比服务器端更新！强制拉取将丢失本地最新修改。")
+                console.print("\n[bold red]⚠️ 本地密码记录比服务器端更新！强制拉取将丢失本地最新修改。[/bold red]")
                 try:
-                    confirm = input("是否继续？[y/N]: ").strip().lower()
+                    if not Confirm.ask("是否继续", default=False):
+                        console.print("[dim]已取消拉取。建议先执行 --sync-push 上传本地数据。[/dim]")
+                        return
                 except (EOFError, KeyboardInterrupt):
-                    confirm = "n"
-                if confirm != 'y':
-                    print("已取消拉取。建议先执行 --sync-push 上传本地数据。")
+                    console.print("\n[dim]已取消[/dim]")
                     return
 
         # 下载文件
@@ -635,14 +691,14 @@ def sftp_pull(force: bool = False):
         try:
             sftp.get(remote_salt, str(SALT_FILE))
         except FileNotFoundError:
-            print("  ⚠ 远程盐文件不存在，仅拉取了加密文件。")
+            console.print("  [yellow]⚠ 远程盐文件不存在，仅拉取了加密文件。[/yellow]")
 
-        print(f"✓ 已从 {SFTP_HOST}:{REMOTE_DIR} 拉取到本地")
+        console.print(f"[bold green]✓ 已从 {SFTP_HOST}:{REMOTE_DIR} 拉取到本地[/bold green]")
 
     except FileNotFoundError:
-        print("\n⚠ 服务器上未找到密码文件。")
+        console.print("\n[bold yellow]⚠ 服务器上未找到密码文件。[/bold yellow]")
     except Exception as e:
-        print(f"✗ 拉取失败: {e}")
+        console.print(f"[bold red]✗ 拉取失败: {e}[/bold red]")
     finally:
         sftp.close()
         ssh.close()
@@ -654,7 +710,7 @@ def sync_after_save():
         return
 
     try:
-        print("\n☁ 正在同步到云端...")
+        console.print("\n[bold blue]☁ 正在同步到云端...[/bold blue]")
         ssh, sftp = create_sftp_client()
 
         try:
@@ -668,13 +724,13 @@ def sync_after_save():
             if SALT_FILE.exists():
                 sftp.put(str(SALT_FILE), remote_salt)
 
-            print(f"✓ 云端同步完成 ({SFTP_HOST})")
+            console.print(f"[bold green]✓ 云端同步完成 ({SFTP_HOST})[/bold green]")
         finally:
             sftp.close()
             ssh.close()
 
     except Exception as e:
-        print(f"⚠ 云端同步失败，已保存至本地: {e}")
+        console.print(f"[bold yellow]⚠ 云端同步失败，已保存至本地: {e}[/bold yellow]")
 
 
 # ==================== 输出格式 ====================
@@ -701,37 +757,54 @@ def save_to_file(content: str, filepath: str, format_type: str = "text"):
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
-        print(f"\n已保存到文件: {filepath}")
+        console.print(f"\n[bold green]✓ 已保存到文件:[/bold green] {filepath}")
     except Exception as e:
-        print(f"\n保存失败: {e}")
+        console.print(f"\n[bold red]✗ 保存失败: {e}[/bold red]")
 
 
 # ==================== 交互界面 ====================
 
 def print_banner():
     """打印横幅"""
-    print("""
-╔══════════════════════════════════════════════════════════╗
-║                   强密码生成器 v2.0                       ║
-║                                                          ║
-║  功能: 可配置长度 | 强度评估 | 排除混淆字符 | 历史记录    ║
-╚══════════════════════════════════════════════════════════╝
-""")
+    banner_text = Text()
+    banner_text.append("强密码生成器", style="bold bright_cyan")
+    banner_text.append(" v2.0", style="bold bright_blue")
+
+    features = Text()
+    features.append("可配置长度", style="bright_white")
+    features.append(" · ", style="dim")
+    features.append("强度评估", style="bright_white")
+    features.append(" · ", style="dim")
+    features.append("排除混淆字符", style="bright_white")
+    features.append(" · ", style="dim")
+    features.append("加密存储", style="bright_green")
+    features.append(" · ", style="dim")
+    features.append("云端同步", style="bright_blue")
+
+    panel = Panel(
+        features,
+        title=banner_text,
+        border_style="bright_blue",
+        box=box.DOUBLE_EDGE,
+        padding=(1, 2),
+    )
+    console.print()
+    console.print(panel)
 
 
 def print_password_card(index: int, analysis: dict, show_analysis: bool = True):
     """打印密码卡片"""
     pwd = analysis['password']
     
-    print(f"  [{index}] {pwd}")
+    console.print(f"  [bold cyan]\\[{index}][/bold cyan] [bold bright_white]{pwd}[/bold bright_white]")
     
     if show_analysis:
-        icon = analysis['icon']
         strength = analysis['strength']
         entropy = analysis['entropy']
         crack_time = analysis['crack_time']
-        print(f"      {icon} 强度: {strength} | 熵值: {entropy} bits | 破解时间: {crack_time}")
-        print()
+        style = _strength_style(strength)
+        console.print(f"      [{style}]● {strength}[/{style}] [dim]|[/dim] 熵值: [bold]{entropy}[/bold] bits [dim]|[/dim] 破解时间: [bold]{crack_time}[/bold]")
+        console.print()
 
 
 def interactive_mode(args):
@@ -739,9 +812,9 @@ def interactive_mode(args):
     print_banner()
     
     # 显示当前配置
-    print(f"当前配置: 长度={args.length}, 数量={args.count}, "
-          f"排除混淆字符={'是' if args.exclude_confusing else '否'}")
-    print()
+    console.print(f"[dim]当前配置: 长度={args.length}, 数量={args.count}, "
+                  f"排除混淆字符={'是' if args.exclude_confusing else '否'}[/dim]")
+    console.print()
     
     passwords = []
     analyses = []
@@ -751,8 +824,8 @@ def interactive_mode(args):
         passwords = []
         analyses = []
         
-        print("-" * 58)
-        print("生成的密码：\n")
+        console.rule("[bold bright_cyan]生成的密码[/bold bright_cyan]", style="bright_blue")
+        console.print()
         
         for i in range(args.count):
             pwd = generate_strong_password(
@@ -768,18 +841,28 @@ def interactive_mode(args):
             analyses.append(analysis)
             print_password_card(i + 1, analysis)
         
-        print("-" * 58)
+        console.rule(style="bright_blue")
     
     generate_passwords()
     
     while True:
-        sync_hint = " | [u] 上传同步 | [p] 拉取同步" if sftp_is_configured() else ""
-        print(f"\n命令: [1-{args.count}] 选择密码 | [r] 重新生成 | [l] 修改长度 | [s] 加密保存 | [d] 解密查看{sync_hint} | [h] 历史记录 | [q] 退出")
+        console.print()
+        cmd_parts = [f"[bold cyan]\\[1-{args.count}][/bold cyan] 选择密码"]
+        cmd_parts.append("[bold cyan]\\[r][/bold cyan] 重新生成")
+        cmd_parts.append("[bold cyan]\\[l][/bold cyan] 修改长度")
+        cmd_parts.append("[bold cyan]\\[s][/bold cyan] 加密保存")
+        cmd_parts.append("[bold cyan]\\[d][/bold cyan] 解密查看")
+        if sftp_is_configured():
+            cmd_parts.append("[bold cyan]\\[u][/bold cyan] 上传同步")
+            cmd_parts.append("[bold cyan]\\[p][/bold cyan] 拉取同步")
+        cmd_parts.append("[bold cyan]\\[h][/bold cyan] 历史记录")
+        cmd_parts.append("[bold cyan]\\[q][/bold cyan] 退出")
+        console.print(" | ".join(cmd_parts))
         
         try:
-            choice = input("请输入: ").strip().lower()
+            choice = Prompt.ask("[bold]请输入[/bold]").strip().lower()
         except (EOFError, KeyboardInterrupt):
-            print("\n退出")
+            console.print("\n[dim]退出[/dim]")
             sys.exit(0)
         
         # 选择密码
@@ -788,43 +871,48 @@ def interactive_mode(args):
             selected = passwords[idx]
             analysis = analyses[idx]
             
-            print(f"\n{'='*58}")
-            print(f"你选择的密码: {selected}")
-            print(f"{'='*58}")
+            console.print()
+            console.print(Panel(
+                f"[bold bright_white]{selected}[/bold bright_white]",
+                title="[bold green]你选择的密码[/bold green]",
+                border_style="green", box=box.ROUNDED, padding=(1, 2),
+            ))
             
             if copy_to_clipboard(selected):
-                print("✓ 密码已复制到剪贴板")
+                console.print("[bold green]✓ 密码已复制到剪贴板[/bold green]")
             
             # 保存到历史
             if not args.no_history:
                 save_to_history(selected, analysis)
-                print("✓ 已记录到历史（仅保存哈希）")
+                console.print("[bold green]✓ 已记录到历史（仅保存哈希）[/bold green]")
             
-            print()
+            console.print()
             
             # 询问是否继续
-            cont = input("继续生成? [y/n]: ").strip().lower()
-            if cont != 'y':
+            try:
+                if not Confirm.ask("继续生成", default=True):
+                    break
+            except (EOFError, KeyboardInterrupt):
                 break
             generate_passwords()
         
         # 重新生成
         elif choice == 'r':
-            print("\n重新生成...\n")
+            console.print("\n[dim]重新生成...[/dim]\n")
             generate_passwords()
         
         # 修改长度
         elif choice == 'l':
             try:
-                new_length = int(input(f"请输入新的密码长度 ({MIN_LENGTH}-{MAX_LENGTH}): "))
+                new_length = IntPrompt.ask(f"请输入新的密码长度 ({MIN_LENGTH}-{MAX_LENGTH})")
                 if MIN_LENGTH <= new_length <= MAX_LENGTH:
                     args.length = new_length
-                    print(f"\n密码长度已更新为: {new_length}\n")
+                    console.print(f"\n[bold green]✓ 密码长度已更新为: {new_length}[/bold green]\n")
                     generate_passwords()
                 else:
-                    print(f"长度必须在 {MIN_LENGTH}-{MAX_LENGTH} 之间")
-            except ValueError:
-                print("请输入有效的数字")
+                    console.print(f"[bold red]长度必须在 {MIN_LENGTH}-{MAX_LENGTH} 之间[/bold red]")
+            except (ValueError, KeyboardInterrupt):
+                console.print("[bold red]请输入有效的数字[/bold red]")
         
         # 加密保存
         elif choice == 's':
@@ -848,11 +936,11 @@ def interactive_mode(args):
         
         # 退出
         elif choice == 'q':
-            print("退出")
+            console.print("[dim]退出[/dim]")
             break
         
         else:
-            print("无效输入")
+            console.print("[bold red]无效输入[/bold red]")
 
 
 def batch_mode(args):
@@ -892,13 +980,13 @@ def batch_mode(args):
     
     # 默认格式输出
     print_banner()
-    print("-" * 58)
-    print("生成的密码：\n")
+    console.rule("[bold bright_cyan]生成的密码[/bold bright_cyan]", style="bright_blue")
+    console.print()
     
     for i, (pwd, analysis) in enumerate(zip(passwords, analyses)):
         print_password_card(i + 1, analysis, show_analysis=not args.no_analysis)
     
-    print("-" * 58)
+    console.rule(style="bright_blue")
     
     if args.save_encrypted:
         save_passwords_encrypted(passwords, analyses)
@@ -981,11 +1069,11 @@ def main():
     
     # 验证参数
     if args.length < MIN_LENGTH or args.length > MAX_LENGTH:
-        print(f"错误: 密码长度必须在 {MIN_LENGTH}-{MAX_LENGTH} 之间")
+        console.print(f"[bold red]错误: 密码长度必须在 {MIN_LENGTH}-{MAX_LENGTH} 之间[/bold red]")
         sys.exit(1)
     
     if args.count < 1 or args.count > 100:
-        print("错误: 生成数量必须在 1-100 之间")
+        console.print("[bold red]错误: 生成数量必须在 1-100 之间[/bold red]")
         sys.exit(1)
     
     # 显示历史记录
