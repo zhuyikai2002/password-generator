@@ -1,7 +1,7 @@
 # 🔐 Password Generator
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-3.0.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   <img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-brightgreen.svg" alt="Platform">
 </p>
@@ -42,6 +42,12 @@
 | 📥 **Export Download** | Export as **TXT / JSON / CSV / Markdown** formats |
 | 🎨 **Unified GUI** | Beautiful GUI interface across all platforms |
 | 🔒 **Secure Random** | Cryptographically secure random number generation |
+| 🔐 **Encrypted Storage** | Fernet (AES) + PBKDF2 master password encryption for local vault |
+| ☁️ **Cloud Sync** | SFTP bidirectional sync with key/password auth & timestamp conflict prevention |
+| 🎭 **Terminal UI** | Rich library TUI upgrade with colored strength indicators, tables & panels |
+| 📦 **Batch Generate** | Web version supports generating multiple passwords at once |
+| 🔍 **Password Search** | Filter encrypted vault by keyword when reading |
+| 📊 **Strength Stats** | Web vault shows strength distribution bar chart |
 
 ---
 
@@ -153,6 +159,43 @@ pwgen -l 16 -e
 | | `--json` | JSON output format | No |
 | | `--plain` | Plain text output | No |
 | `-h` | `--help` | Show help | - |
+| | `--save-encrypted` | Encrypt and save generated passwords locally | No |
+| | `--read-encrypted` | Decrypt and read saved passwords | No |
+| | `--search` | Filter decrypted vault by keyword | - |
+| | `--sync-push` | Upload encrypted file to SFTP server | No |
+| | `--sync-pull` | Download encrypted file from SFTP server | No |
+| | `--force` | Force sync, skip timestamp comparison | No |
+| | `--history` | Show generation history | No |
+| | `--no-history` | Don't save to history | No |
+
+### Encrypted Storage Examples
+
+```bash
+# Batch generate and encrypt-save
+pwgen -b -l 16 -c 3 --save-encrypted
+
+# Decrypt and read (passwords hidden by default, enter index to reveal)
+pwgen --read-encrypted
+
+# Decrypt and filter by keyword
+pwgen --read-encrypted --search "strong"
+```
+
+### SFTP Cloud Sync
+
+1. Copy `.env.example` to `.env` and fill in your server info
+2. Sync commands:
+
+```bash
+# Manual upload
+pwgen --sync-push
+
+# Manual download
+pwgen --sync-pull
+
+# Force upload (skip timestamp comparison)
+pwgen --sync-push --force
+```
 
 ---
 
@@ -191,8 +234,8 @@ password-generator/
 
 ### Security Notes
 
-- **Web version**: Uses `crypto.getRandomValues()` Web Crypto API
-- **Python version**: Uses `secrets` module (cryptographically secure)
+- **Web version**: Uses `crypto.getRandomValues()` Web Crypto API + AES-GCM + PBKDF2
+- **Python version**: Uses `secrets` module + Fernet (AES) + PBKDF2HMAC
 - **Swift version**: Uses system-level secure random
 - **Node.js version**: Uses `crypto.randomInt()`
 

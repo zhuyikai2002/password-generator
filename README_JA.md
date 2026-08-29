@@ -1,7 +1,7 @@
 # 🔐 パスワードジェネレーター
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-3.0.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   <img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-brightgreen.svg" alt="Platform">
 </p>
@@ -42,6 +42,12 @@
 | 📥 **エクスポート** | **TXT / JSON / CSV / Markdown** 形式でダウンロード |
 | 🎨 **統一GUI** | すべてのプラットフォームで美しいGUIインターフェース |
 | 🔒 **セキュアな乱数** | 暗号学的に安全な乱数生成 |
+| 🔐 **暗号化ストレージ** | Fernet (AES) + PBKDF2 マスターパスワードによるローカル金庫暗号化 |
+| ☁️ **クラウド同期** | SFTP双方向同期、鍵/パスワード認証、タイムスタンプ競合防止 |
+| 🎭 **ターミナルUI** | richライブラリによるカラー強度表示、テーブル、パネル |
+| 📦 **一括生成** | Web版で複数のパスワードを一度に生成可能 |
+| 🔍 **パスワード検索** | 復号時にキーワードで金庫をフィルタリング |
+| 📊 **強度統計** | Web金庫に強度分布棒グラフを表示 |
 
 ---
 
@@ -153,6 +159,43 @@ pwgen -l 16 -e
 | | `--json` | JSON形式で出力 | いいえ |
 | | `--plain` | プレーンテキスト出力 | いいえ |
 | `-h` | `--help` | ヘルプを表示 | - |
+| | `--save-encrypted` | 生成したパスワードを暗号化してローカルに保存 | いいえ |
+| | `--read-encrypted` | 保存されたパスワードを復号して読み取り | いいえ |
+| | `--search` | 復号時にキーワードで金庫をフィルタリング | - |
+| | `--sync-push` | 暗号化ファイルをSFTPサーバーにアップロード | いいえ |
+| | `--sync-pull` | SFTPサーバーから暗号化ファイルをダウンロード | いいえ |
+| | `--force` | 強制同期、タイムスタンプ比較をスキップ | いいえ |
+| | `--history` | 生成履歴を表示 | いいえ |
+| | `--no-history` | 履歴に保存しない | いいえ |
+
+### 暗号化ストレージの例
+
+```bash
+# 一括生成して暗号化保存
+pwgen -b -l 16 -c 3 --save-encrypted
+
+# 復号して読み取り（パスワードはデフォルトで非表示、番号入力で表示）
+pwgen --read-encrypted
+
+# 復号してキーワードでフィルタリング
+pwgen --read-encrypted --search "strong"
+```
+
+### SFTPクラウド同期
+
+1. `.env.example` を `.env` にコピーし、サーバー情報を入力
+2. 同期コマンド：
+
+```bash
+# 手動アップロード
+pwgen --sync-push
+
+# 手動ダウンロード
+pwgen --sync-pull
+
+# 強制アップロード（タイムスタンプ比較をスキップ）
+pwgen --sync-push --force
+```
 
 ---
 
@@ -191,8 +234,8 @@ password-generator/
 
 ### セキュリティについて
 
-- **Web版**: `crypto.getRandomValues()` Web Crypto API を使用
-- **Python版**: `secrets` モジュール（暗号学的に安全）を使用
+- **Web版**: `crypto.getRandomValues()` Web Crypto API + AES-GCM + PBKDF2 を使用
+- **Python版**: `secrets` モジュール + Fernet (AES) + PBKDF2HMAC を使用
 - **Swift版**: システムレベルのセキュア乱数を使用
 - **Node.js版**: `crypto.randomInt()` を使用
 
