@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -30,8 +33,20 @@ jobs:
       
       - name: Upload to Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: windows-installer/output/*.exe
+          name: Password Generator ${{ github.ref_name }}
+          body: |
+            ## Password Generator ${{ github.ref_name }}
+            
+            ### Downloads
+            | File | Description |
+            |------|-------------|
+            | `PasswordGenerator-Setup.exe` | Windows Installer (recommended) |
+            
+            See the [README](https://github.com/zhuyikai2002/password-generator/blob/main/README.md) for full documentation.
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
