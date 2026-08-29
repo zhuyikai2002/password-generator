@@ -12,7 +12,7 @@ windows-installer/
 │   ├── pwgen.html              # HTML 界面
 │   └── icon.ico                # 图标文件
 └── output/
-    └── PasswordGenerator-2.0.0-Setup.exe  # 生成的安装程序
+    └── PasswordGenerator-3.0.0-Setup.exe  # 生成的安装程序
 ```
 
 ## 构建步骤
@@ -42,7 +42,7 @@ https://jrsoftware.org/isdl.php
 
 编译完成后，安装程序位于：
 ```
-output/PasswordGenerator-2.0.0-Setup.exe
+output/PasswordGenerator-3.0.0-Setup.exe
 ```
 
 ## 安装程序功能

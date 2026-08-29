@@ -4,7 +4,7 @@
 
 #define MyAppName "Password Generator"
 #define MyAppNameCN "密码生成器"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "3.0.0"
 #define MyAppPublisher "zhuyikai2002"
 #define MyAppURL "https://github.com/zhuyikai2002/password-generator"
 #define MyAppExeName "PasswordGenerator.hta"

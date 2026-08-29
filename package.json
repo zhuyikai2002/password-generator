@@ -1,6 +1,6 @@
 {
   "name": "password-generator",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "强密码生成器 - 支持可配置长度、强度评估、排除混淆字符",
   "main": "generate-password.js",
   "bin": {

@@ -25,17 +25,43 @@ jobs:
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows-installer\setup.iss
       
-      - name: Upload Installer
+      - name: Build Portable ZIP
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          $zipName = "PasswordGenerator-$version-Windows-GUI.zip"
+          $tempDir = "PasswordGenerator-$version"
+          
+          New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+          Copy-Item "app/PasswordGenerator.hta" $tempDir
+          Copy-Item "app/pwgen.html" $tempDir
+          Copy-Item "windows-installer/files/icon.ico" "$tempDir/icon.ico"
+          
+          # Create a simple launcher batch file
+          @'
+          @echo off
+          title Password Generator
+          echo Starting Password Generator...
+          start "" "%~dp0PasswordGenerator.hta"
+          '@ | Set-Content "$tempDir/启动密码生成器.bat" -Encoding Default
+          
+          Compress-Archive -Path "$tempDir/*" -DestinationPath "windows-installer/output/$zipName" -Force
+          Write-Output "Created: $zipName"
+      
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: PasswordGenerator-Setup
-          path: windows-installer/output/*.exe
+          name: PasswordGenerator-Build
+          path: |
+            windows-installer/output/*.exe
+            windows-installer/output/*.zip
       
       - name: Upload to Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: windows-installer/output/*.exe
+          files: |
+            windows-installer/output/*.exe
+            windows-installer/output/*.zip
           name: Password Generator ${{ github.ref_name }}
           body: |
             ## Password Generator ${{ github.ref_name }}
@@ -43,7 +69,12 @@ jobs:
             ### Downloads
             | File | Description |
             |------|-------------|
-            | `PasswordGenerator-Setup.exe` | Windows Installer (recommended) |
+            | `PasswordGenerator-Setup.exe` | Windows Installer (recommended, supports desktop shortcut) |
+            | `PasswordGenerator-Windows-GUI.zip` | Portable version (no install needed, extract and run) |
+            
+            ### How to use
+            - **Installer**: Download and run the `.exe` installer. Choose install directory and optionally create a desktop shortcut.
+            - **Portable ZIP**: Extract the ZIP, then double-click `PasswordGenerator.hta` or `启动密码生成器.bat` to launch.
             
             See the [README](https://github.com/zhuyikai2002/password-generator/blob/main/README.md) for full documentation.
           draft: false

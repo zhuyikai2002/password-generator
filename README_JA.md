@@ -63,9 +63,9 @@ https://zhuyikai2002.github.io/password-generator/ にアクセス
 
 | ファイル | プラットフォーム | サイズ | 説明 |
 |----------|------------------|--------|------|
-| `PasswordGenerator-2.0.0-Setup.exe` | Windows | ~1.9MB | 🟢 **インストーラー（推奨）デスクトップショートカット対応** |
-| `PasswordGenerator-2.0.0-macOS.dmg` | macOS | ~321KB | 🍎 **ネイティブウィンドウアプリ、直接開く** |
-| `PasswordGenerator-2.0.0-Windows-GUI.zip` | Windows | ~10KB | ポータブル版 (ZIP) |
+| `PasswordGenerator-3.0.0-Setup.exe` | Windows | ~1.9MB | 🟢 **インストーラー（推奨）デスクトップショートカット対応** |
+| `PasswordGenerator-3.0.0-macOS.dmg` | macOS | ~321KB | 🍎 **ネイティブウィンドウアプリ、直接開く** |
+| `PasswordGenerator-3.0.0-Windows-GUI.zip` | Windows | ~10KB | ポータブル版 (ZIP) |
 | `pwgen-win.exe` | Windows | ~36MB | コマンドラインバージョン |
 | `pwgen` | macOS | ~103KB | CLIツール（Swift） |
 | `pwgen-linux` | Linux | ~44MB | CLIツール |
@@ -76,7 +76,7 @@ https://zhuyikai2002.github.io/password-generator/ にアクセス
 
 ### Windows ユーザー（インストーラー推奨）
 
-1. `PasswordGenerator-2.0.0-Setup.exe` をダウンロード
+1. `PasswordGenerator-3.0.0-Setup.exe` をダウンロード
 2. ダブルクリックでインストーラーを実行
 3. インストール先を選択、✅「デスクトップショートカットを作成」にチェック
 4. インストール完了後、デスクトップアイコンをダブルクリックで実行！
@@ -86,7 +86,7 @@ https://zhuyikai2002.github.io/password-generator/ にアクセス
 ### macOS ユーザー
 
 **GUIアプリケーション：**
-1. `PasswordGenerator-2.0.0-macOS.dmg` をダウンロード
+1. `PasswordGenerator-3.0.0-macOS.dmg` をダウンロード
 2. DMGを開き、アプリをApplicationsにドラッグ
 3. ダブルクリックで実行、**ネイティブウィンドウが直接開きます（ブラウザ不要）！**
 

@@ -63,9 +63,9 @@ Go to [Releases Page](https://github.com/zhuyikai2002/password-generator/release
 
 | File | Platform | Size | Description |
 |------|----------|------|-------------|
-| `PasswordGenerator-2.0.0-Setup.exe` | Windows | ~1.9MB | 🟢 **Installer (Recommended) with desktop shortcut** |
-| `PasswordGenerator-2.0.0-macOS.dmg` | macOS | ~321KB | 🍎 **Native window app, opens directly** |
-| `PasswordGenerator-2.0.0-Windows-GUI.zip` | Windows | ~10KB | Portable version (ZIP) |
+| `PasswordGenerator-3.0.0-Setup.exe` | Windows | ~1.9MB | 🟢 **Installer (Recommended) with desktop shortcut** |
+| `PasswordGenerator-3.0.0-macOS.dmg` | macOS | ~321KB | 🍎 **Native window app, opens directly** |
+| `PasswordGenerator-3.0.0-Windows-GUI.zip` | Windows | ~10KB | Portable version (ZIP) |
 | `pwgen-win.exe` | Windows | ~36MB | Command line version |
 | `pwgen` | macOS | ~103KB | CLI tool (Swift) |
 | `pwgen-linux` | Linux | ~44MB | CLI tool |
@@ -76,7 +76,7 @@ Go to [Releases Page](https://github.com/zhuyikai2002/password-generator/release
 
 ### Windows Users (Installer Recommended)
 
-1. Download `PasswordGenerator-2.0.0-Setup.exe`
+1. Download `PasswordGenerator-3.0.0-Setup.exe`
 2. Double-click to run the installer
 3. Choose install directory, ✅ check "Create desktop shortcut"
 4. After installation, double-click the desktop icon to run!
@@ -86,7 +86,7 @@ Go to [Releases Page](https://github.com/zhuyikai2002/password-generator/release
 ### macOS Users
 
 **GUI Application:**
-1. Download `PasswordGenerator-2.0.0-macOS.dmg`
+1. Download `PasswordGenerator-3.0.0-macOS.dmg`
 2. Open DMG, drag the app to Applications
 3. Double-click to run, **opens native window directly, no browser needed!**
 
