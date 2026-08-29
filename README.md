@@ -1,7 +1,7 @@
 # 🔐 强密码生成器 | Password Generator
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-3.0.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   <img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-brightgreen.svg" alt="Platform">
 </p>
@@ -42,6 +42,12 @@
 | 📥 **下载导出** | 支持导出为 **TXT / JSON / CSV / Markdown** 四种格式 |
 | 🎨 **统一界面** | 全平台统一美观的 GUI 界面 |
 | 🔒 **安全随机** | 使用密码学安全的随机数生成器 |
+| 🔐 **加密存储** | Fernet (AES) + PBKDF2 主密码加密保护，本地安全存储 |
+| ☁️ **云端同步** | SFTP 双向同步，支持密钥/密码认证，时间戳防覆盖 |
+| 🎭 **终端美化** | rich 库 TUI 升级，彩色强度分级、表格、Panel |
+| 📦 **批量生成** | Web 版支持一次生成多个密码 |
+| 🔍 **密码搜索** | 解密读取时支持按关键词过滤 |
+| 📊 **强度统计** | Web 版密码库展示强度分布统计图 |
 
 ---
 
@@ -153,6 +159,43 @@ pwgen -l 16 -e
 | | `--json` | JSON 格式输出 | 否 |
 | | `--plain` | 纯文本输出 | 否 |
 | `-h` | `--help` | 显示帮助 | - |
+| | `--save-encrypted` | 将生成的密码加密保存到本地 | 否 |
+| | `--read-encrypted` | 解密读取已保存的密码 | 否 |
+| | `--search` | 解密读取时按关键词过滤 | - |
+| | `--sync-push` | 手动上传加密文件到 SFTP 服务器 | 否 |
+| | `--sync-pull` | 从 SFTP 服务器拉取加密文件到本地 | 否 |
+| | `--force` | 强制同步，跳过时间戳比对 | 否 |
+| | `--history` | 显示历史记录 | 否 |
+| | `--no-history` | 不保存到历史记录 | 否 |
+
+### 加密存储示例
+
+```bash
+# 批量生成并加密保存
+pwgen -b -l 16 -c 3 --save-encrypted
+
+# 解密读取（密码默认隐藏，输入序号可查看明文）
+pwgen --read-encrypted
+
+# 解密并按关键词过滤
+pwgen --read-encrypted --search "强"
+```
+
+### SFTP 云端同步
+
+1. 复制 `.env.example` 为 `.env`，填写服务器信息
+2. 同步命令：
+
+```bash
+# 手动上传
+pwgen --sync-push
+
+# 手动拉取
+pwgen --sync-pull
+
+# 强制上传（跳过时间戳比对）
+pwgen --sync-push --force
+```
 
 ---
 

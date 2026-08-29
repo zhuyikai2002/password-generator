@@ -380,7 +380,15 @@ def encrypt_and_save(passwords_data: list, master_password: str):
             decrypted = fernet.decrypt(encrypted)
             existing_data = json.loads(decrypted.decode('utf-8'))
         except InvalidToken:
-            console.print("\n[bold yellow]⚠ 警告: 主密码与之前保存时不一致，将覆盖旧数据。[/bold yellow]")
+            console.print("\n[bold red]⚠ 警告: 主密码与之前保存时不一致！[/bold red]")
+            console.print("  [dim]继续将覆盖已有的旧密码记录，且无法恢复。[/dim]")
+            try:
+                if not Confirm.ask("是否覆盖旧数据", default=False):
+                    console.print("[dim]已取消保存。[/dim]")
+                    return
+            except (EOFError, KeyboardInterrupt):
+                console.print("\n[dim]已取消[/dim]")
+                return
             existing_data = []
         except Exception:
             existing_data = []
@@ -457,7 +465,7 @@ def save_passwords_encrypted(passwords: list, analyses: list):
         console.print(f"\n[bold red]✗ 加密保存失败: {e}[/bold red]")
 
 
-def read_passwords_encrypted():
+def read_passwords_encrypted(search: str = ''):
     """交互式解密读取入口"""
     console.print()
     console.print(Panel(
@@ -486,7 +494,16 @@ def read_passwords_encrypted():
         console.print("\n[dim]暂无已保存的密码记录。[/dim]")
         return
 
-    console.print(f"\n[bold green]✓ 解密成功！[/bold green]共找到 [bold]{len(data)}[/bold] 条密码记录：")
+    # 搜索/过滤
+    if search:
+        data = [r for r in data if search.lower() in r.get('password', '').lower()
+                or search.lower() in r.get('strength', '').lower()]
+        if not data:
+            console.print(f"\n[bold yellow]⚠ 未找到包含 \"{search}\" 的记录。[/bold yellow]")
+            return
+        console.print(f"\n[bold green]✓ 解密成功！[/bold green]搜索 \"{search}\" 匹配 [bold]{len(data)}[/bold] 条记录：")
+    else:
+        console.print(f"\n[bold green]✓ 解密成功！[/bold green]共找到 [bold]{len(data)}[/bold] 条密码记录：")
 
     table = Table(
         box=box.ROUNDED,
@@ -500,13 +517,17 @@ def read_passwords_encrypted():
     table.add_column("熵值", justify="center", width=10)
     table.add_column("保存时间", style="dim")
 
+    # 默认隐藏密码，显示掩码
+    hidden_map = {}
     for i, record in enumerate(data, 1):
         pwd = record.get('password', '???')
+        hidden_map[i] = pwd
+        masked = pwd[:2] + '•' * max(len(pwd) - 4, 4) + pwd[-2:] if len(pwd) > 4 else '•' * len(pwd)
         strength = record.get('strength', '-')
         style = _strength_style(strength)
         table.add_row(
             str(i),
-            pwd,
+            masked,
             str(record.get('length', '-')),
             f"[{style}]{strength}[/{style}]",
             str(record.get('entropy', '-')),
@@ -514,8 +535,27 @@ def read_passwords_encrypted():
         )
 
     console.print(table)
-    console.print(f"  [dim]共 {len(data)} 条记录[/dim]")
-    console.print("  [bold yellow]⚠ 请注意：密码已在终端明文显示，阅读后请及时清屏。[/bold yellow]\n")
+    console.print(f"  [dim]共 {len(data)} 条记录 · 密码已隐藏[/dim]")
+    console.print("  [dim]输入序号可查看明文密码 (直接回车返回)[/dim]")
+
+    # 按需查看明文
+    try:
+        reveal = Prompt.ask("\n  [bold cyan]查看明文[/bold]", default='').strip()
+        if reveal.isdigit() and 1 <= int(reveal) <= len(data):
+            idx = int(reveal)
+            real_pwd = hidden_map[idx]
+            console.print(Panel(
+                f"[bold bright_white]{real_pwd}[/bold bright_white]",
+                title=f"[bold green]第 {idx} 条密码[/bold green]",
+                border_style="green", box=box.ROUNDED, padding=(1, 2),
+            ))
+            if copy_to_clipboard(real_pwd):
+                console.print("[bold green]✓ 已复制到剪贴板[/bold green]")
+            console.print("[bold yellow]⚠ 密码已在终端明文显示，阅读后请及时清屏。[/bold yellow]")
+    except (EOFError, KeyboardInterrupt):
+        pass
+
+    console.print()
 
 
 # ==================== SFTP 云端同步 ====================
@@ -705,32 +745,44 @@ def sftp_pull(force: bool = False):
 
 
 def sync_after_save():
-    """保存后自动同步钩子（仅在 SFTP 已配置时触发，静默模式不询问）"""
+    """保存后自动同步钩子（仅在 SFTP 已配置时触发，失败时重试 1 次）"""
     if not sftp_is_configured():
         return
 
-    try:
-        console.print("\n[bold blue]☁ 正在同步到云端...[/bold blue]")
-        ssh, sftp = create_sftp_client()
-
+    import time
+    max_retries = 1
+    for attempt in range(max_retries + 1):
         try:
-            _ensure_remote_dir(sftp)
+            if attempt > 0:
+                console.print(f"[bold blue]☁ 第 {attempt + 1} 次尝试同步...[/bold blue]")
+            else:
+                console.print("\n[bold blue]☁ 正在同步到云端...[/bold blue]")
+            ssh, sftp = create_sftp_client()
 
-            remote_enc = REMOTE_DIR.rstrip("/") + "/" + ENCRYPTED_FILE.name
-            remote_salt = REMOTE_DIR.rstrip("/") + "/" + SALT_FILE.name
+            try:
+                _ensure_remote_dir(sftp)
 
-            # 自动同步时：本地刚保存，一定是最新的，直接上传
-            sftp.put(str(ENCRYPTED_FILE), remote_enc)
-            if SALT_FILE.exists():
-                sftp.put(str(SALT_FILE), remote_salt)
+                remote_enc = REMOTE_DIR.rstrip("/") + "/" + ENCRYPTED_FILE.name
+                remote_salt = REMOTE_DIR.rstrip("/") + "/" + SALT_FILE.name
 
-            console.print(f"[bold green]✓ 云端同步完成 ({SFTP_HOST})[/bold green]")
-        finally:
-            sftp.close()
-            ssh.close()
+                # 自动同步时：本地刚保存，一定是最新的，直接上传
+                sftp.put(str(ENCRYPTED_FILE), remote_enc)
+                if SALT_FILE.exists():
+                    sftp.put(str(SALT_FILE), remote_salt)
 
-    except Exception as e:
-        console.print(f"[bold yellow]⚠ 云端同步失败，已保存至本地: {e}[/bold yellow]")
+                console.print(f"[bold green]✓ 云端同步完成 ({SFTP_HOST})[/bold green]")
+            finally:
+                sftp.close()
+                ssh.close()
+
+            return  # 成功，直接返回
+
+        except Exception as e:
+            if attempt < max_retries:
+                console.print(f"[bold yellow]⚠ 同步失败，3 秒后重试: {e}[/bold yellow]")
+                time.sleep(3)
+            else:
+                console.print(f"[bold yellow]⚠ 云端同步失败，已保存至本地: {e}[/bold yellow]")
 
 
 # ==================== 输出格式 ====================
@@ -916,6 +968,9 @@ def interactive_mode(args):
         
         # 加密保存
         elif choice == 's':
+            if not passwords:
+                console.print("\n[bold yellow]⚠ 暂无可保存的密码，请先生成密码。[/bold yellow]")
+                continue
             save_passwords_encrypted(passwords, analyses)
         
         # 解密查看
@@ -1052,6 +1107,8 @@ def main():
                         help='将生成的密码加密保存到本地')
     parser.add_argument('--read-encrypted', action='store_true',
                         help='解密读取已保存的密码')
+    parser.add_argument('--search', type=str, default='',
+                        help='解密读取时按关键词过滤密码或强度')
     
     # SFTP 云端同步
     parser.add_argument('--sync-push', action='store_true',
@@ -1083,7 +1140,7 @@ def main():
     
     # 解密读取模式
     if args.read_encrypted:
-        read_passwords_encrypted()
+        read_passwords_encrypted(search=args.search)
         return
     
     # SFTP 同步模式

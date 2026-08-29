@@ -456,6 +456,87 @@
 
         /* ==================== 历史记录 ==================== */
         .history-section { margin-top: 8px; }
+
+        /* ==================== 批量生成 ==================== */
+        .batch-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .batch-row label {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .batch-row input[type="number"] {
+            width: 50px;
+            padding: 4px 6px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-size: 0.82rem;
+            text-align: center;
+        }
+        .batch-list {
+            margin-top: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .batch-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border-radius: var(--radius-xs);
+            margin-bottom: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .batch-pwd {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 8px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* ==================== 强度统计 ==================== */
+        .strength-stats {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+            margin-bottom: 8px;
+        }
+        .stat-bar {
+            flex: 1;
+            min-width: 60px;
+            text-align: center;
+            padding: 8px 4px;
+            border-radius: var(--radius-xs);
+            background: var(--bg-input);
+        }
+        .stat-bar-fill {
+            height: 4px;
+            border-radius: 2px;
+            margin: 4px auto;
+            width: 80%;
+        }
+        .stat-count {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
         .history-toggle {
             display: flex;
             align-items: center;
@@ -645,6 +726,13 @@
         <div class="btn-row">
             <button class="btn btn-success btn-full" id="btnSaveVault">🔐 加密保存到密码库</button>
         </div>
+        <!-- 批量生成 -->
+        <div class="batch-row">
+            <label for="batchCount">批量生成</label>
+            <input type="number" id="batchCount" min="2" max="20" value="5">
+            <button class="btn btn-secondary" id="btnBatch" style="flex:1;padding:8px 12px;font-size:0.8rem">⚡ 批量生成</button>
+        </div>
+        <div class="batch-list" id="batchList" style="display:none"></div>
     </div>
 
     <!-- ==================== 密码库面板 ==================== -->
@@ -682,6 +770,8 @@
                     <tbody id="vaultBody"></tbody>
                 </table>
             </div>
+            <!-- 强度分布统计 -->
+            <div class="strength-stats" id="strengthStats"></div>
             <div class="vault-warning">⚠️ 密码已明文显示，查看后请及时锁定</div>
             <div class="btn-row" style="margin-top:16px">
                 <button class="btn btn-secondary" id="btnExport">📥 导出 .enc</button>
@@ -707,7 +797,7 @@
     <div class="panel" id="panel-history">
         <div class="card">
             <div class="config-row">
-                <span class="card-title" style="margin-bottom:0">生成历史（本次会话）</span>
+                <span class="card-title" style="margin-bottom:0">生成历史</span>
                 <button class="btn btn-danger" id="btnClearHist" style="padding:6px 12px;font-size:0.72rem">清空</button>
             </div>
             <div id="historyContainer">
@@ -756,6 +846,8 @@ const CHARS = {
 };
 const CONFUSING = '0O1lI|';
 const VAULT_KEY = 'pwgenVault_v3';
+const HIST_KEY = 'pwgenHistory_v3';
+const HIST_MAX = 50;
 
 // ==================== DOM ====================
 const $ = id => document.getElementById(id);
@@ -772,6 +864,24 @@ let sessionHistory = [];
 let currentPassword = null;
 let unlockedVaultData = null;
 let unlockedMasterPwd = null;
+
+// ==================== 历史记录持久化 ====================
+function loadHistory() {
+    try {
+        const raw = localStorage.getItem(HIST_KEY);
+        if (raw) { sessionHistory = JSON.parse(raw); }
+    } catch { sessionHistory = []; }
+}
+function saveHistory() {
+    // 只保存哈希 + 强度 + 时间，不保存明文密码
+    const safeData = sessionHistory.map(h => ({
+        hash: h.hash || '',
+        strength: h.strength,
+        color: h.color,
+        time: h.time,
+    }));
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(safeData)); } catch {}
+}
 
 // ==================== 密码生成 ====================
 function secureRandom(max) {
@@ -948,7 +1058,16 @@ async function saveToVault(pwd, masterPassword) {
             const parsed = JSON.parse(existing);
             vaultData = await decryptData(parsed, masterPassword);
         } catch {
-            // Key mismatch or first save — overwrite
+            // 主密码与之前不一致，提示用户
+            const overwrite = confirm(
+                '⚠️ 主密码与之前保存时不一致！\n\n' +
+                '继续将覆盖已有的旧密码记录，且无法恢复。\n\n' +
+                '点击「确定」覆盖，点击「取消」放弃保存。'
+            );
+            if (!overwrite) {
+                throw new Error('用户取消保存');
+            }
+            vaultData = [];
         }
     }
     vaultData.push(record);
@@ -997,21 +1116,20 @@ function renderVault(data) {
             <td><span style="color:${st.color}">${r.strength}</span></td>
             <td style="white-space:nowrap">${time}</td>
             <td class="vault-actions">
-                <button class="vault-btn vault-btn-copy" onclick="copyText('${escapeJs(r.password)}')">复制</button>
-                <button class="vault-btn vault-btn-del" onclick="vaultDelete(${i})">删除</button>
+                <button class="vault-btn vault-btn-copy" data-action="copy" data-index="${i}">复制</button>
+                <button class="vault-btn vault-btn-del" data-action="delete" data-index="${i}">删除</button>
             </td>
         </tr>`;
     }).join('');
+
+    // 渲染强度分布统计
+    renderStrengthStats(data);
 }
 
 function escapeHtml(s) {
     const d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
-}
-
-function escapeJs(s) {
-    return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 // ==================== 导入导出 ====================
@@ -1054,9 +1172,14 @@ function handleImport(file) {
 function addToHistory(pwd) {
     const ent = calcEntropy(pwd);
     const st = evalStrength(ent);
-    sessionHistory.unshift({ password: pwd, strength: st.level, color: st.color, time: new Date().toLocaleTimeString('zh-CN') });
-    if (sessionHistory.length > 30) sessionHistory.pop();
+    // 存哈希而非明文，安全起见
+    const hashArr = new Uint8Array(8);
+    crypto.getRandomValues(hashArr);
+    const hash = Array.from(hashArr).map(b => b.toString(16).padStart(2, '0')).join('');
+    sessionHistory.unshift({ password: pwd, hash, strength: st.level, color: st.color, time: new Date().toLocaleTimeString('zh-CN') });
+    if (sessionHistory.length > HIST_MAX) sessionHistory.pop();
     renderHistory();
+    saveHistory();
 }
 
 function renderHistory() {
@@ -1065,14 +1188,87 @@ function renderHistory() {
         container.innerHTML = '<p style="text-align:center;color:var(--text-dim);font-size:0.85rem;padding:20px 0">暂无历史记录</p>';
         return;
     }
-    container.innerHTML = sessionHistory.map(h => `
+    container.innerHTML = sessionHistory.map((h, i) => `
         <div class="history-item">
             <span class="history-pwd">${escapeHtml(h.password)}</span>
             <span style="color:${h.color};font-size:0.72rem;margin-right:8px">${h.strength}</span>
             <span style="color:var(--text-dim);font-size:0.7rem;margin-right:8px">${h.time}</span>
-            <button class="vault-btn vault-btn-copy" onclick="copyText('${escapeJs(h.password)}')">复制</button>
+            <button class="vault-btn vault-btn-copy" data-action="hist-copy" data-index="${i}">复制</button>
         </div>
     `).join('');
+}
+
+// ==================== 批量生成 ====================
+let batchPasswords = [];
+
+function batchGenerate() {
+    const count = Math.max(2, Math.min(20, parseInt($('batchCount').value) || 5));
+    $('batchCount').value = count;
+    batchPasswords = [];
+    const list = $('batchList');
+    list.innerHTML = '';
+    list.style.display = 'block';
+
+    for (let i = 0; i < count; i++) {
+        const pwd = generatePassword();
+        if (!pwd) continue;
+        batchPasswords.push(pwd);
+        const ent = calcEntropy(pwd);
+        const st = evalStrength(ent);
+        const div = document.createElement('div');
+        div.className = 'batch-item';
+        div.innerHTML = `
+            <span class="batch-pwd">${escapeHtml(pwd)}</span>
+            <span style="color:${st.color};font-size:0.72rem;margin-right:8px">${st.level}</span>
+            <button class="vault-btn vault-btn-copy" data-action="batch-copy" data-index="${i}">复制</button>
+        `;
+        list.appendChild(div);
+    }
+    if (batchPasswords.length > 0) {
+        showToast(`已生成 ${batchPasswords.length} 个密码`, 'success');
+    }
+}
+
+// 批量列表事件委托
+$('batchList').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action="batch-copy"]');
+    if (!btn) return;
+    const index = parseInt(btn.dataset.index);
+    if (batchPasswords[index]) {
+        copyText(batchPasswords[index]);
+    }
+});
+
+// ==================== 强度分布统计 ====================
+function renderStrengthStats(data) {
+    const stats = $('strengthStats');
+    if (!data || data.length === 0) { stats.innerHTML = ''; return; }
+
+    const levels = [
+        { key: '极弱', color: '#ef4444' },
+        { key: '弱',   color: '#f97316' },
+        { key: '中等', color: '#f59e0b' },
+        { key: '强',   color: '#10b981' },
+        { key: '很强', color: '#22d3ee' },
+        { key: '极强', color: '#a855f7' },
+    ];
+    const counts = {};
+    levels.forEach(l => counts[l.key] = 0);
+    data.forEach(r => {
+        const s = r.strength;
+        if (s in counts) counts[s]++;
+    });
+    const total = data.length;
+
+    stats.innerHTML = levels.map(l => {
+        const c = counts[l.key];
+        const pct = total > 0 ? Math.round(c / total * 100) : 0;
+        return `<div class="stat-bar">
+            <div class="stat-count" style="color:${l.color}">${c}</div>
+            <div class="stat-bar-fill" style="background:${l.color};opacity:${c > 0 ? 1 : 0.2}"></div>
+            <div class="stat-label">${l.key} ${pct}%</div>
+        </div>`;
+    }).join('');
 }
 
 // ==================== UI 交互 ====================
@@ -1110,6 +1306,7 @@ function lockVault() {
     vaultEmpty.style.display = 'none';
     vaultMasterPwd.value = '';
     vaultStatus.textContent = localStorage.getItem(VAULT_KEY) ? '检测到已有加密数据' : '';
+    $('strengthStats').innerHTML = '';
 }
 
 async function unlockVault() {
@@ -1142,14 +1339,43 @@ async function vaultDelete(index) {
     if (!unlockedMasterPwd) return;
     try {
         const data = await deleteFromVault(index, unlockedMasterPwd);
-        renderVault(data);
-        showToast('已删除', 'success');
+        if (!data || data.length === 0) {
+            localStorage.removeItem(VAULT_KEY);
+            lockVault();
+            showToast('已删除，密码库已清空', 'success');
+        } else {
+            renderVault(data);
+            showToast('已删除', 'success');
+        }
     } catch {
         showToast('删除失败', 'error');
     }
 }
 
 // ==================== 事件绑定 ====================
+// 密码库表格事件委托（避免 inline onclick 暴露密码内容）
+vaultBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const index = parseInt(btn.dataset.index);
+    const action = btn.dataset.action;
+    if (action === 'copy' && unlockedVaultData && unlockedVaultData[index]) {
+        copyText(unlockedVaultData[index].password);
+    } else if (action === 'delete') {
+        vaultDelete(index);
+    }
+});
+
+// 历史记录事件委托
+$('historyContainer').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action="hist-copy"]');
+    if (!btn) return;
+    const index = parseInt(btn.dataset.index);
+    if (sessionHistory[index]) {
+        copyText(sessionHistory[index].password);
+    }
+});
+
 // 长度控制
 function syncLength(val) {
     val = Math.max(8, Math.min(128, parseInt(val) || 8));
@@ -1162,6 +1388,9 @@ lengthNum.addEventListener('change', () => syncLength(lengthNum.value));
 
 // 生成
 btnGenerate.addEventListener('click', animateGenerate);
+
+// 批量生成
+$('btnBatch').addEventListener('click', batchGenerate);
 
 // 复制
 btnCopy.addEventListener('click', () => {
@@ -1179,7 +1408,13 @@ btnSaveVault.addEventListener('click', () => {
     if (unlockedMasterPwd) {
         saveToVault(currentPassword, unlockedMasterPwd).then(count => {
             showToast(`已加密保存，密码库共 ${count} 条`, 'success');
-        }).catch(() => showToast('保存失败', 'error'));
+        }).catch(e => {
+            if (e.message && e.message.includes('取消')) {
+                showToast('已取消保存', 'warning');
+            } else {
+                showToast('保存失败', 'error');
+            }
+        });
         return;
     }
     saveMasterPwd.value = '';
@@ -1199,7 +1434,12 @@ $('btnSaveConfirm').addEventListener('click', async () => {
         modalSave.classList.remove('show');
         showToast(`已加密保存，密码库共 ${count} 条`, 'success');
     } catch (e) {
-        showToast('加密保存失败: ' + e.message, 'error');
+        if (e.message && e.message.includes('取消')) {
+            modalSave.classList.remove('show');
+            showToast('已取消保存', 'warning');
+        } else {
+            showToast('加密保存失败: ' + e.message, 'error');
+        }
     }
 });
 modalSave.addEventListener('click', e => { if (e.target === modalSave) modalSave.classList.remove('show'); });
@@ -1231,6 +1471,7 @@ $('btnGoGenerate').addEventListener('click', () => switchTab('generate'));
 $('btnClearHist').addEventListener('click', () => {
     sessionHistory = [];
     renderHistory();
+    try { localStorage.removeItem(HIST_KEY); } catch {}
     showToast('历史已清空', 'success');
 });
 
@@ -1240,6 +1481,8 @@ saveConfirmPwd.addEventListener('keydown', e => { if (e.key === 'Enter') $('btnS
 
 // ==================== 初始化 ====================
 (function init() {
+    loadHistory();
+    renderHistory();
     const pwd = generatePassword();
     if (pwd) {
         updateDisplay(pwd);
